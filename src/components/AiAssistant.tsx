@@ -1,22 +1,34 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, Sparkles, Loader2 } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { X, Send, Bot, Sparkles, Loader2, Pin, PinOff } from 'lucide-react';
 import type { Message } from '../types';
 import { getChatResponseService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
+import { ResultDisplay } from './ResultDisplay';
 
 interface AiAssistantProps {
   currentContext: string | null;
   contextType: 'sentence' | 'word' | 'writing';
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  messages: Message[];
+  onMessagesChange: (messages: Message[]) => void;
+  isPinned: boolean;
+  onPinChange: (isPinned: boolean) => void;
 }
 
 const SUGGESTION_CHIP_CLASSES = "flex-shrink-0 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shadow-sm";
 
-export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contextType }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: '你好！我是你的 AI 英语助手。有什么可以帮你的吗？' }
-  ]);
+export const AiAssistant: React.FC<AiAssistantProps> = ({ 
+  currentContext, 
+  contextType,
+  isOpen,
+  onOpenChange,
+  messages,
+  onMessagesChange,
+  isPinned,
+  onPinChange
+}) => {
   const [inputValue, setInputValue] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -29,31 +41,26 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contex
     scrollToBottom();
   }, [messages, isOpen, isThinking]);
 
-  // Reset chat when context changes
-  useEffect(() => {
-    if (currentContext) {
-      let typeLabel = '';
-      if (contextType === 'sentence') typeLabel = '句子';
-      else if (contextType === 'word') typeLabel = '单词';
-      else typeLabel = '文章';
-
-      setMessages([{ role: 'assistant', content: `已加载当前${typeLabel}内容。你可以针对它向我提问。` }]);
-    }
-  }, [currentContext, contextType]);
+  // Handle context changes - Note: Parent should probably handle the "New Context" message if desired, 
+  // or we can keep this effect but be careful not to conflict with parent updates.
+  // For now, let's allow the parent to reset messages if needed, or we can just append a system message here.
+  // But strictly lifting state means parent controls messages. 
+  // Let's rely on parent to add "Context Loaded" message if it wants to reset conversation.
 
   const handleSend = async (content: string) => {
     if (!content.trim() || isThinking) return;
 
     const userMsg: Message = { role: 'user', content: content };
-    setMessages(prev => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    onMessagesChange(newMessages);
     setInputValue("");
     setIsThinking(true);
 
     try {
-      const responseText = await getChatResponseService(messages, currentContext, content, contextType);
-      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+      const responseText = await getChatResponseService(newMessages, currentContext, content, contextType);
+      onMessagesChange([...newMessages, { role: 'assistant', content: responseText }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "抱歉，连接出了点问题，请稍后再试。" }]);
+      onMessagesChange([...newMessages, { role: 'assistant', content: "抱歉，连接出了点问题，请稍后再试。" }]);
     } finally {
       setIsThinking(false);
     }
@@ -64,9 +71,15 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contex
     handleSend(inputValue);
   };
 
-  const containerClasses = isOpen
-    ? 'fixed z-50 inset-0 md:inset-auto md:bottom-6 md:right-6 flex flex-col items-end font-sans' // Mobile full screen, Desktop bottom-right
-    : 'fixed z-50 bottom-6 right-6 flex flex-col items-end font-sans';
+  const containerClasses = isPinned
+    ? 'w-full h-full flex flex-col font-sans bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800'
+    : isOpen
+      ? 'fixed z-50 inset-0 md:inset-auto md:bottom-6 md:right-6 flex flex-col items-end font-sans' // Mobile full screen, Desktop bottom-right
+      : 'fixed z-50 bottom-6 right-6 flex flex-col items-end font-sans';
+
+  const cardClasses = isPinned
+    ? 'w-full h-full flex flex-col overflow-hidden bg-white dark:bg-slate-900'
+    : 'w-full h-full md:w-[600px] md:h-[85vh] md:max-h-[900px] md:mb-4 bg-white dark:bg-slate-900 md:rounded-3xl shadow-2xl shadow-slate-900/20 dark:shadow-slate-950/50 border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 transition-colors';
 
   const renderSuggestions = () => {
     if (contextType === 'sentence') {
@@ -100,10 +113,12 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contex
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; }
+        .markdown-body p { margin-bottom: 0.5em; }
+        .markdown-body p:last-child { margin-bottom: 0; }
       `}</style>
 
-      {isOpen && (
-        <div className="w-full h-full md:w-[400px] md:h-[75vh] md:max-h-[800px] md:mb-4 bg-white dark:bg-slate-900 md:rounded-3xl shadow-2xl shadow-slate-900/20 dark:shadow-slate-950/50 border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 transition-colors">
+      {(isOpen || isPinned) && (
+        <div className={cardClasses}>
           {/* Header */}
           <div className="bg-gradient-to-r from-pink-600 to-rose-500 p-4 flex justify-between items-center text-white shadow-md z-10 shrink-0 safe-top">
             <div className="flex items-center gap-2.5">
@@ -115,19 +130,42 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contex
                 <p className="text-[10px] text-pink-100 opacity-90">Powered by Gemini 2.5</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => onPinChange(!isPinned)} 
+                className={`hover:bg-white/20 p-1.5 rounded-full transition-colors ${isPinned ? 'bg-white/20' : ''}`}
+                title={isPinned ? "取消固定" : "固定侧边栏"}
+              >
+                {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+              </button>
+              <button onClick={() => isPinned ? onPinChange(false) : onOpenChange(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-3 py-4 bg-slate-50 dark:bg-slate-800/50 space-y-6 custom-scrollbar transition-colors">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] md:max-w-[98%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-pink-600 text-white rounded-br-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-bl-sm markdown-body'
-                  }`}>
-                  {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
-                </div>
+                {msg.type === 'analysis_result' && msg.data ? (
+                  <div className="w-full max-w-[95%]">
+                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-1 shadow-sm overflow-hidden">
+                        <ResultDisplay result={msg.data} compact={true} />
+                     </div>
+                  </div>
+                ) : msg.type === 'dictionary_result' && msg.data ? (
+                  <div className="w-full max-w-[95%]">
+                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 shadow-sm overflow-hidden">
+                        <CompactDictionaryResult result={msg.data} />
+                     </div>
+                  </div>
+                ) : (
+                  <div className={`max-w-[90%] md:max-w-[98%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-pink-600 text-white rounded-br-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-bl-sm markdown-body'
+                    }`}>
+                    {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
+                  </div>
+                )}
               </div>
             ))}
             {isThinking && (
@@ -166,14 +204,56 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ currentContext, contex
         </div>
       )}
 
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`group p-4 rounded-full shadow-xl transition-all duration-300 flex items-center gap-2 relative overflow-hidden ${isOpen ? 'hidden md:flex bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 rotate-90 scale-90' : 'flex bg-gradient-to-tr from-pink-600 to-rose-500 text-white hover:scale-105 hover:-translate-y-1'}`}
-      >
-        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-        {isOpen ? <X className="w-6 h-6" /> : <><Sparkles className="w-6 h-6 animate-pulse" /><span className="font-bold text-base pr-1 hidden md:inline">问问 AI</span></>}
-      </button>
+      {/* Toggle Button - Only show when NOT pinned */}
+      {!isPinned && (
+        <button
+          onClick={() => onOpenChange(!isOpen)}
+          className={`group p-4 rounded-full shadow-xl transition-all duration-300 flex items-center gap-2 relative overflow-hidden ${isOpen ? 'hidden md:flex bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 rotate-90 scale-90' : 'flex bg-gradient-to-tr from-pink-600 to-rose-500 text-white hover:scale-105 hover:-translate-y-1'}`}
+        >
+          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+          {isOpen ? <X className="w-6 h-6" /> : <><Sparkles className="w-6 h-6 animate-pulse" /><span className="font-bold text-base pr-1 hidden md:inline">问问 AI</span></>}
+        </button>
+      )}
+    </div>
+  );
+};
+
+const CompactDictionaryResult: React.FC<{ result: any }> = ({ result }) => {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+        <h4 className="text-xl font-bold text-slate-900 dark:text-white leading-none">{result.word}</h4>
+        <span className="text-sm text-slate-500 dark:text-slate-400 font-mono">{result.phonetic}</span>
+      </div>
+      
+      <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar pt-2">
+        {result.entries.map((entry: any, eIdx: number) => (
+          <div key={eIdx} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                {entry.partOfSpeech}
+              </span>
+            </div>
+            <div className="space-y-3 pl-1">
+              {entry.definitions.map((def: any, dIdx: number) => (
+                <div key={dIdx} className="text-sm">
+                  <div className="flex gap-2">
+                    <span className="text-slate-300 dark:text-slate-600 font-bold shrink-0">{dIdx + 1}.</span>
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-slate-200 leading-snug">{def.meaning}</p>
+                      <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{def.explanation}</p>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 ml-6 p-2 bg-slate-50 dark:bg-slate-800/20 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 italic">"{def.example}"</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{def.exampleTranslation}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

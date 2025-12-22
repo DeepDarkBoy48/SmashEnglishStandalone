@@ -5,11 +5,11 @@ import { InputArea } from './components/InputArea';
 import { ResultDisplay } from './components/ResultDisplay';
 import { DictionaryPage } from './components/DictionaryPage';
 import { WritingPage } from './components/WritingPage';
-import { Footer } from './components/Footer';
+
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
-import { analyzeSentenceService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult } from './types';
+import { analyzeSentenceService, lookupWordService } from './services/geminiService';
+import type { AnalysisResult, DictionaryResult, WritingResult, Message } from './types';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
 // 预加载的示例分析结果
@@ -46,6 +46,17 @@ const App: React.FC = () => {
   // Writing State
   const [writingResult, setWritingResult] = useState<WritingResult | null>(null);
 
+  // AI Assistant State (Lifted)
+  const [aiIsOpen, setAiIsOpen] = useState(false);
+  const [aiIsPinned, setAiIsPinned] = useState(false);
+  const [aiMessages, setAiMessages] = useState<Message[]>([
+    { role: 'assistant', content: '你好！我是你的 AI 英语助手。有什么可以帮你的吗？' }
+  ]);
+
+  // Caches for AI results to save tokens and time
+  const [analysisCache, setAnalysisCache] = useState<Record<string, AnalysisResult>>({});
+  const [dictionaryCache, setDictionaryCache] = useState<Record<string, DictionaryResult>>({});
+
   const handleAnalyze = async (sentence: string) => {
     if (!sentence.trim() || isAnalyzerLoading) return;
 
@@ -61,6 +72,78 @@ const App: React.FC = () => {
       setAnalyzerError(err.message || "分析失败，请稍后再试。");
     } finally {
       setIsAnalyzerLoading(false);
+    }
+  };
+
+  // Trigger Analysis via AI Assistant
+  const handleTriggerAnalysis = async (text: string) => {
+    // 1. Reset messages to clear memory (User requirement: clicks clear previous memory)
+    setAiMessages([
+      { role: 'assistant', content: `正在为你分析句子：\n> "${text}"` }
+    ]);
+    setAiIsOpen(true);
+
+    // 2. Check Cache
+    if (analysisCache[text]) {
+      setAiMessages([{
+        role: 'assistant',
+        content: `已从缓存加载句法分析：`,
+        type: 'analysis_result',
+        data: analysisCache[text]
+      }]);
+      return;
+    }
+
+    // 3. Perform AI Analysis
+    try {
+      const result = await analyzeSentenceService(text);
+      
+      setAnalysisCache(prev => ({ ...prev, [text]: result }));
+      setAiMessages([{
+        role: 'assistant',
+        content: `已完成句法分析：`,
+        type: 'analysis_result',
+        data: result
+      }]);
+    } catch (err: any) {
+      setAiMessages([{ role: 'assistant', content: `分析失败: ${err.message || '未知错误'}` }]);
+    }
+  };
+
+  // Trigger Dictionary lookup via AI Assistant
+  const handleTriggerDictionary = async (word: string) => {
+    const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
+    if (!cleanWord) return;
+
+    // 1. Reset memory
+    setAiMessages([
+      { role: 'assistant', content: `正在为你查词：**${cleanWord}**` }
+    ]);
+    setAiIsOpen(true);
+
+    // 2. Check Cache
+    if (dictionaryCache[cleanWord]) {
+       setAiMessages([{
+         role: 'assistant',
+         content: `已从缓存加载 **${cleanWord}** 的释义：`,
+         type: 'dictionary_result',
+         data: dictionaryCache[cleanWord]
+       }]);
+       return;
+    }
+
+    // 3. Perform AI Lookup
+    try {
+      const result = await lookupWordService(cleanWord);
+      setDictionaryCache(prev => ({ ...prev, [cleanWord]: result }));
+      setAiMessages([{
+        role: 'assistant',
+        content: `查词结果：`,
+        type: 'dictionary_result',
+        data: result
+      }]);
+    } catch (err: any) {
+      setAiMessages([{ role: 'assistant', content: `查词失败: ${err.message || '未知错误'}` }]);
     }
   };
 
@@ -80,13 +163,7 @@ const App: React.FC = () => {
     contextType = 'writing';
   }
 
-  // Dynamic container width based on active tab
-  const getContainerMaxWidth = () => {
-    if (activeTab === 'writing' || activeTab === 'youtube') {
-      return 'max-w-[98%] 2xl:max-w-[2400px]'; // Extra wide for split-view writing
-    }
-    return 'max-w-5xl'; // Standard readable width for Analyzer and Dictionary
-  };
+
 
   // Dynamic container padding based on active tab
   const getContainerPadding = () => {
@@ -103,91 +180,118 @@ const App: React.FC = () => {
         onNavigate={setActiveTab}
       />
 
-      <main className={`flex-grow container mx-auto overflow-y-auto ${getContainerMaxWidth()} ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' ? 'gap-2' : 'gap-8'} relative transition-all duration-300 ease-in-out`}>
+      <div className="flex-1 flex overflow-hidden relative">
+        <main className={`flex-1 overflow-y-auto ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' ? 'gap-2' : 'gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
 
-        {activeTab === 'analyzer' && (
-          <>
-            {/* Hero Section */}
-            <div className="text-center space-y-4 mb-4">
-              <div className="inline-flex items-center justify-center p-2 bg-pink-50 dark:bg-pink-950/50 rounded-full text-pink-600 dark:text-pink-400 mb-2">
-                <Sparkles className="w-5 h-5 mr-2" />
-                <span className="text-sm font-medium">AI 驱动的英语语法分析</span>
+          {activeTab === 'analyzer' && (
+            <div className="w-full max-w-5xl flex flex-col gap-8">
+              {/* Hero Section */}
+              <div className="text-center space-y-4 mb-4">
+                <div className="inline-flex items-center justify-center p-2 bg-pink-50 dark:bg-pink-950/50 rounded-full text-pink-600 dark:text-pink-400 mb-2">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  <span className="text-sm font-medium">AI 驱动的英语语法分析</span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-50 font-serif">
+                  英语句子成分可视化
+                </h1>
+                <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                  输入任何英语句子，立刻解析其主谓宾定状补结构。
+                  <br className="hidden md:block" />适合英语学习者、教师及语言爱好者。
+                </p>
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-50 font-serif">
-                英语句子成分可视化
-              </h1>
-              <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                输入任何英语句子，立刻解析其主谓宾定状补结构。
-                <br className="hidden md:block" />适合英语学习者、教师及语言爱好者。
-              </p>
-            </div>
 
-            {/* Input Section */}
-            <div className="w-full max-w-2xl mx-auto">
-              <InputArea onAnalyze={handleAnalyze} isLoading={isAnalyzerLoading} initialValue={DEMO_RESULT.englishSentence} />
-            </div>
+              {/* Input Section */}
+              <div className="w-full max-w-2xl mx-auto">
+                <InputArea onAnalyze={handleAnalyze} isLoading={isAnalyzerLoading} initialValue={DEMO_RESULT.englishSentence} />
+              </div>
 
-            {/* Results Section */}
-            <div className="w-full">
-              {isAnalyzerLoading && (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
-                  <p className="text-slate-500 dark:text-slate-400 animate-pulse">正在分析句子结构...</p>
-                </div>
-              )}
-
-              {analyzerError && (
-                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3 text-red-700 dark:text-red-400 max-w-2xl mx-auto">
-                  <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-medium">分析出错</h3>
-                    <p className="text-sm mt-1 opacity-90">{analyzerError}</p>
+              {/* Results Section */}
+              <div className="w-full">
+                {isAnalyzerLoading && (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
+                    <p className="text-slate-500 dark:text-slate-400 animate-pulse">正在分析句子结构...</p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {analyzerResult && !isAnalyzerLoading && (
-                <div className="animate-fade-in">
-                  <ResultDisplay result={analyzerResult} />
-                </div>
-              )}
+                {analyzerError && (
+                  <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3 text-red-700 dark:text-red-400 max-w-2xl mx-auto">
+                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium">分析出错</h3>
+                      <p className="text-sm mt-1 opacity-90">{analyzerError}</p>
+                    </div>
+                  </div>
+                )}
 
-              {!analyzerResult && !isAnalyzerLoading && !analyzerError && (
-                <div className="text-center py-12 opacity-40 flex flex-col items-center">
-                  <BookOpen className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-600" />
-                  <p>暂无分析结果，请在上方输入句子。</p>
-                </div>
-              )}
+                {analyzerResult && !isAnalyzerLoading && (
+                  <div className="animate-fade-in">
+                    <ResultDisplay result={analyzerResult} />
+                  </div>
+                )}
+
+                {!analyzerResult && !isAnalyzerLoading && !analyzerError && (
+                  <div className="text-center py-12 opacity-40 flex flex-col items-center">
+                    <BookOpen className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-600" />
+                    <p>暂无分析结果，请在上方输入句子。</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </>
+          )}
+
+          {activeTab === 'dictionary' && (
+            <DictionaryPage
+              initialResult={dictionaryResult}
+              onResultChange={setDictionaryResult}
+            />
+          )}
+
+          {activeTab === 'writing' && (
+            <WritingPage
+              initialResult={writingResult}
+              onResultChange={setWritingResult}
+            />
+          )}
+
+          {activeTab === 'youtube' && (
+            <YoutubeStudyPage 
+              onTriggerAnalysis={handleTriggerAnalysis} 
+              onTriggerDictionary={handleTriggerDictionary}
+            />
+          )}
+        </main>
+
+        {/* Pinned AI Assistant Sidebar */}
+        {aiIsPinned && (
+          <div className="w-[400px] 2xl:w-[450px] shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20 transition-all duration-300">
+            <AiAssistant
+              currentContext={assistantContextContent}
+              contextType={contextType}
+              isOpen={aiIsOpen}
+              onOpenChange={setAiIsOpen}
+              messages={aiMessages}
+              onMessagesChange={setAiMessages}
+              isPinned={true}
+              onPinChange={setAiIsPinned}
+            />
+          </div>
         )}
+      </div>
 
-        {activeTab === 'dictionary' && (
-          <DictionaryPage
-            initialResult={dictionaryResult}
-            onResultChange={setDictionaryResult}
-          />
-        )}
-
-        {activeTab === 'writing' && (
-          <WritingPage
-            initialResult={writingResult}
-            onResultChange={setWritingResult}
-          />
-        )}
-
-        {activeTab === 'youtube' && (
-          <YoutubeStudyPage />
-        )}
-      </main>
-
-      <Footer />
-
-      {/* Floating AI Assistant */}
-      <AiAssistant
-        currentContext={assistantContextContent}
-        contextType={contextType}
-      />
+      {/* Floating AI Assistant (Controlled) */}
+      {!aiIsPinned && (
+        <AiAssistant
+          currentContext={assistantContextContent}
+          contextType={contextType}
+          isOpen={aiIsOpen}
+          onOpenChange={setAiIsOpen}
+          messages={aiMessages}
+          onMessagesChange={setAiMessages}
+          isPinned={false}
+          onPinChange={setAiIsPinned}
+        />
+      )}
     </div>
   );
 };

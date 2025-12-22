@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Youtube, Upload, Play, Sparkles, AlertCircle, Book, Search, Volume2, Loader2, FileUp } from 'lucide-react';
-import { parseSRT } from '../utils/srtParser';
+import { Youtube, Upload, Play, Sparkles, FileUp } from 'lucide-react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { parseSRT, optimizeSubtitles } from '../utils/srtParser';
 import type { SubtitleItem } from '../utils/srtParser';
-import { analyzeSentenceService, lookupWordService } from '../services/geminiService';
-import type { AnalysisResult, DictionaryResult } from '../types';
-import { ResultDisplay } from './ResultDisplay';
 
 // Extend Window interface for YouTube API
 declare global {
@@ -14,15 +12,22 @@ declare global {
   }
 }
 
-// Right panel tab type
-type RightPanelTab = 'analysis' | 'dictionary';
+interface YoutubeStudyPageProps {
+  onTriggerAnalysis?: (text: string) => void;
+  onTriggerDictionary?: (word: string) => void;
+}
 
-export const YoutubeStudyPage: React.FC = () => {
+export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({ 
+  onTriggerAnalysis,
+  onTriggerDictionary 
+}) => {
   // --- State ---
   // Column 1: Video
   const [videoUrl, setVideoUrl] = useState('');
   const [videoId, setVideoId] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
+  const subtitleContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   // Column 2: Subtitles
@@ -30,19 +35,7 @@ export const YoutubeStudyPage: React.FC = () => {
   const [subtitles, setSubtitles] = useState<SubtitleItem[]>([]);
   const [activeSubtitleId, setActiveSubtitleId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Column 3: Analysis
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Column 3: Dictionary
-  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('analysis');
-  const [dictQuery, setDictQuery] = useState('');
-  const [dictResult, setDictResult] = useState<DictionaryResult | null>(null);
-  const [dictError, setDictError] = useState<string | null>(null);
-  const [isDictLoading, setIsDictLoading] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isWordSearchEnabled, setIsWordSearchEnabled] = useState(false);
 
   // --- Effects ---
 
@@ -99,7 +92,6 @@ export const YoutubeStudyPage: React.FC = () => {
           const currentSub = subtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
           if (currentSub && currentSub.id !== activeSubtitleId) {
             setActiveSubtitleId(currentSub.id);
-            // Optional: Auto-scroll to active subtitle
           }
         }
       }, 500);
@@ -107,13 +99,25 @@ export const YoutubeStudyPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlayerReady, subtitles, activeSubtitleId]);
 
+  // Scroll to active subtitle
+  useEffect(() => {
+    if (activeSubtitleId && virtuosoRef.current && subtitles.length > 0) {
+      const index = subtitles.findIndex(s => s.id === activeSubtitleId);
+      if (index !== -1) {
+        virtuosoRef.current.scrollToIndex({
+          index,
+          align: 'center',
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeSubtitleId, subtitles]);
+
 
   // --- Handlers ---
 
   const handleVideoUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Extract ID from URL
-    // Supports: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = videoUrl.match(regExp);
     if (match && match[2].length === 11) {
@@ -131,7 +135,7 @@ export const YoutubeStudyPage: React.FC = () => {
         const content = e.target?.result as string;
         setSrtContent(content);
         const parsed = parseSRT(content);
-        setSubtitles(parsed);
+        setSubtitles(optimizeSubtitles(parsed));
       };
       reader.readAsText(file);
     }
@@ -141,7 +145,7 @@ export const YoutubeStudyPage: React.FC = () => {
     const content = e.target.value;
     setSrtContent(content);
     const parsed = parseSRT(content);
-    setSubtitles(parsed);
+    setSubtitles(optimizeSubtitles(parsed));
   };
 
   const handleJumpToTime = (startTime: number) => {
@@ -152,22 +156,46 @@ export const YoutubeStudyPage: React.FC = () => {
   };
 
   const handleAnalyze = async (sub: SubtitleItem) => {
-    if (isAnalyzing) return;
-    
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-    setAnalysisResult(null);
-    setRightPanelTab('analysis');
-
-    try {
-      // Use the cleaned text for analysis (no timestamps etc)
-      const result = await analyzeSentenceService(sub.text.replace(/\n/g, ' '));
-      setAnalysisResult(result);
-    } catch (err: any) {
-      setAnalysisError(err.message || "分析失败");
-    } finally {
-      setIsAnalyzing(false);
+    if (onTriggerAnalysis) {
+      const cleanText = sub.text.replace(/\n/g, ' ');
+      onTriggerAnalysis(cleanText);
     }
+  };
+
+  const handleWordClick = (word: string, e: React.MouseEvent) => {
+    if (!isWordSearchEnabled) return;
+    e.stopPropagation();
+    if (onTriggerDictionary) {
+      onTriggerDictionary(word);
+    }
+  };
+
+  const renderSubtitleText = (text: string) => {
+    if (!isWordSearchEnabled) return text;
+
+    // Split by words but keep punctuation as separate or attached
+    // This is a simple split, could be improved with regex
+    const words = text.split(/(\s+)/);
+    return words.map((part, idx) => {
+      if (/\s+/.test(part)) return part;
+      // Extract the word part and punctuation part
+      const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
+      if (match) {
+        const [_, word, punct] = match;
+        return (
+          <React.Fragment key={idx}>
+            <span 
+              className="hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-colors text-blue-600 dark:text-blue-400 font-medium underline decoration-dotted decoration-blue-300 dark:decoration-blue-700 underline-offset-4"
+              onClick={(e) => handleWordClick(word, e)}
+            >
+              {word}
+            </span>
+            {punct}
+          </React.Fragment>
+        );
+      }
+      return part;
+    });
   };
 
   // --- Drag and Drop Handlers ---
@@ -197,7 +225,7 @@ export const YoutubeStudyPage: React.FC = () => {
           const content = event.target?.result as string;
           setSrtContent(content);
           const parsed = parseSRT(content);
-          setSubtitles(parsed);
+          setSubtitles(optimizeSubtitles(parsed));
         };
         reader.readAsText(file);
       } else {
@@ -206,66 +234,10 @@ export const YoutubeStudyPage: React.FC = () => {
     }
   };
 
-  // --- Dictionary Handlers ---
-  const handleDictSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dictQuery.trim() || isDictLoading) return;
-
-    setIsDictLoading(true);
-    setDictError(null);
-
-    try {
-      const data = await lookupWordService(dictQuery);
-      setDictResult(data);
-    } catch (err: any) {
-      setDictError(err.message || "查询失败，请稍后再试。");
-    } finally {
-      setIsDictLoading(false);
-    }
-  };
-
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
-      alert('您的浏览器不支持语音合成功能');
-      return;
-    }
-
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(voice =>
-      voice.lang.startsWith('en') && voice.name.includes('English')
-    );
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-    }
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      console.error('语音播放出错');
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
   return (
-    // Use viewport height minus Header (~60px) + Footer (~50px) + padding (~16px) = ~126px
     <div className="flex flex-col lg:flex-row gap-4 overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
-      
-      {/* Column 1: Video Player (Flex 2) */}
-      <div className="flex-[2] bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+      {/* Column 1: Video Player */}
+      <div className="flex-[2] bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transition-all duration-300">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
            <Youtube className="w-5 h-5 text-red-600" />
            <h2 className="font-semibold text-slate-800 dark:text-white">视频播放</h2>
@@ -296,7 +268,7 @@ export const YoutubeStudyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Column 2: Subtitles (Flex 1) */}
+      {/* Column 2: Subtitles */}
       <div 
         className={`flex-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border-2 flex flex-col overflow-hidden transition-all ${isDragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800'}`}
         onDragOver={handleDragOver}
@@ -308,16 +280,29 @@ export const YoutubeStudyPage: React.FC = () => {
              <Upload className="w-5 h-5 text-blue-500" />
              <h2 className="font-semibold text-slate-800 dark:text-white">字幕内容</h2>
            </div>
-           {!subtitles.length && (
-            <label className="cursor-pointer px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 transition-colors">
-              导入 .srt
-              <input type="file" accept=".srt" className="hidden" onChange={handleSrtUpload} />
-            </label>
-           )}
+            <div className="flex items-center gap-3">
+               <div className="flex items-center gap-2 mr-2">
+                 <label className="relative inline-flex items-center cursor-pointer">
+                   <input 
+                     type="checkbox" 
+                     className="sr-only peer" 
+                     checked={isWordSearchEnabled}
+                     onChange={() => setIsWordSearchEnabled(!isWordSearchEnabled)}
+                   />
+                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                   <span className="ml-2 text-xs font-medium text-slate-500 dark:text-slate-400 select-none">查词模式</span>
+                 </label>
+               </div>
+               {!subtitles.length && (
+                <label className="cursor-pointer px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 transition-colors">
+                  导入 .srt
+                  <input type="file" accept=".srt" className="hidden" onChange={handleSrtUpload} />
+                </label>
+               )}
+            </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-0 relative">
-          {/* Drag Overlay */}
+        <div className="flex-1 overflow-hidden relative" ref={subtitleContainerRef}>
           {isDragging && (
             <div className="absolute inset-0 bg-blue-100/80 dark:bg-blue-900/80 flex flex-col items-center justify-center z-20 pointer-events-none">
               <FileUp className="w-16 h-16 text-blue-500 mb-4 animate-bounce" />
@@ -326,16 +311,12 @@ export const YoutubeStudyPage: React.FC = () => {
           )}
           
           {!subtitles.length ? (
-            <div className="h-full flex flex-col p-4 items-center justify-center">
-              <div className="w-full max-w-sm text-center">
+            <div className="h-full flex flex-col p-4 items-center justify-center overflow-y-auto">
+              <div className="w-full max-sm text-center">
                 <div className="mb-6 p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
                   <FileUp className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
-                    拖拽 .srt 文件到此处
-                  </p>
-                  <p className="text-slate-400 dark:text-slate-500 text-xs">
-                    或点击右上角按钮选择文件
-                  </p>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">拖拽 .srt 文件到此处</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-xs">或点击右上角按钮选择文件</p>
                 </div>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -354,11 +335,14 @@ export const YoutubeStudyPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {subtitles.map((sub) => (
+            <Virtuoso
+              style={{ height: '100%' }}
+              data={subtitles}
+              ref={virtuosoRef}
+              itemContent={(_index, sub) => (
                 <div 
-                  key={sub.id} 
-                  className={`group relative p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${activeSubtitleId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 pl-2' : 'pl-3'}`}
+                  id={`subtitle-${sub.id}`} 
+                  className={`group relative p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800 ${activeSubtitleId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 pl-2' : 'pl-3'}`}
                 >
                   <div className="flex gap-3 items-start">
                     <button 
@@ -374,10 +358,8 @@ export const YoutubeStudyPage: React.FC = () => {
                         {new Date(sub.startTime * 1000).toISOString().substr(14, 5)}
                       </span>
                     </button>
-                    <p 
-                      className="text-base text-slate-700 dark:text-slate-200 leading-relaxed flex-1 pt-1.5 select-text"
-                    >
-                      {sub.text}
+                    <p className="text-base text-slate-700 dark:text-slate-200 leading-relaxed flex-1 pt-1.5 select-text">
+                      {renderSubtitleText(sub.text)}
                     </p>
                   </div>
                   
@@ -389,183 +371,11 @@ export const YoutubeStudyPage: React.FC = () => {
                      <Sparkles className="w-4 h-4" />
                   </button>
                 </div>
-              ))}
-            </div>
+              )}
+            />
           )}
         </div>
       </div>
-
-      {/* Column 3: Analysis & Dictionary (Flex 1) */}
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
-        {/* Tab Header */}
-        <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1 bg-slate-50/50 dark:bg-slate-800/50">
-          <button
-            onClick={() => setRightPanelTab('analysis')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              rightPanelTab === 'analysis' 
-                ? 'bg-white dark:bg-slate-900 text-pink-600 dark:text-pink-400 shadow-sm' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            句法解析
-          </button>
-          <button
-            onClick={() => setRightPanelTab('dictionary')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              rightPanelTab === 'dictionary' 
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Book className="w-4 h-4" />
-            词典
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-          {/* Analysis Tab */}
-          {rightPanelTab === 'analysis' && (
-            <div className="p-4 h-full">
-              {isAnalyzing ? (
-                <div className="flex flex-col items-center justify-center h-full space-y-4">
-                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-                   <p className="text-sm text-slate-500">正在分析句子结构...</p>
-                </div>
-              ) : analysisError ? (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm flex gap-2">
-                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                   <p>{analysisError}</p>
-                </div>
-              ) : analysisResult ? (
-                <ResultDisplay result={analysisResult} />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-600 p-8 text-center">
-                  <Sparkles className="w-12 h-12 mb-4 opacity-50" />
-                  <p>点击字幕右侧的 <Sparkles className="w-3 h-3 inline mx-1" /> 按钮开始分析</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Dictionary Tab */}
-          {rightPanelTab === 'dictionary' && (
-            <div className="p-4 h-full flex flex-col">
-              {/* Search Input */}
-              <form onSubmit={handleDictSearch} className="mb-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={dictQuery}
-                    onChange={(e) => setDictQuery(e.target.value)}
-                    placeholder="输入单词或词组查询..."
-                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all outline-none text-sm"
-                    disabled={isDictLoading}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isDictLoading || !dictQuery.trim()}
-                    className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center"
-                  >
-                    {isDictLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  </button>
-                </div>
-              </form>
-
-              {/* Dictionary Error */}
-              {dictError && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-sm flex gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <p>{dictError}</p>
-                </div>
-              )}
-
-              {/* Dictionary Result */}
-              {dictResult ? (
-                <div className="flex-1 overflow-y-auto space-y-4">
-                  {/* Word Header */}
-                  <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-50 font-serif">{dictResult.word}</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{dictResult.phonetic}</p>
-                      </div>
-                      <button
-                        onClick={() => speakText(dictResult.word)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                          isSpeaking 
-                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' 
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50'
-                        }`}
-                      >
-                        {isSpeaking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Entries */}
-                  {dictResult.entries.map((entry, idx) => (
-                    <div key={idx} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 text-xs font-bold px-2 py-1 rounded uppercase">
-                          {entry.partOfSpeech}
-                        </span>
-                        {entry.cocaFrequency && (
-                          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                            {entry.cocaFrequency}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-3">
-                        {entry.definitions.slice(0, 3).map((def, dIdx) => (
-                          <div key={dIdx} className="border-l-2 border-slate-200 dark:border-slate-700 pl-3">
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{def.meaning}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{def.explanation}</p>
-                            {def.example && (
-                              <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 italic bg-slate-50 dark:bg-slate-800 p-2 rounded">
-                                "{def.example}"
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Collocations */}
-                  {dictResult.collocations && dictResult.collocations.length > 0 && (
-                    <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">常用搭配</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {dictResult.collocations.slice(0, 5).map((col, idx) => (
-                          <span 
-                            key={idx}
-                            className="px-3 py-1.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs rounded-lg font-medium cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
-                            onClick={() => {
-                              setDictQuery(col.phrase);
-                            }}
-                            title={col.meaning}
-                          >
-                            {col.phrase}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : !isDictLoading && (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 text-center">
-                  <Book className="w-12 h-12 mb-4 opacity-50" />
-                  <p className="text-sm">输入单词开始查询</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
     </div>
   );
 };

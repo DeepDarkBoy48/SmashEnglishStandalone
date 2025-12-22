@@ -4,6 +4,12 @@
 /* Enable class-based dark mode (compatible with global theme system) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   font-family: "Inter", sans-serif;
   /* background-color: #f8fafc;  Avoid overriding global body bg if possible, or scope it */

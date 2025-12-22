@@ -87,6 +87,8 @@ export interface WritingResult {
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
+  data?: any;
+  type?: 'text' | 'analysis_result' | 'dictionary_result';
 }
 
 // --- Model Configuration ---
