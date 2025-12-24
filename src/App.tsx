@@ -8,8 +8,9 @@ import { WritingPage } from './components/WritingPage';
 
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
-import { analyzeSentenceService, lookupWordService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult, Message } from './types';
+import { analyzeSentenceService, quickLookupService } from './services/geminiService';
+import type { AnalysisResult, DictionaryResult, WritingResult, Message, QuickLookupResult, Thread } from './types';
+import { ThemeProvider } from './components/ThemeContext';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
 // 预加载的示例分析结果
@@ -46,16 +47,17 @@ const App: React.FC = () => {
   // Writing State
   const [writingResult, setWritingResult] = useState<WritingResult | null>(null);
 
-  // AI Assistant State (Lifted)
+  // AI Assistant State (Lifted Multi-thread)
   const [aiIsOpen, setAiIsOpen] = useState(false);
   const [aiIsPinned, setAiIsPinned] = useState(false);
-  const [aiMessages, setAiMessages] = useState<Message[]>([
-    { role: 'assistant', content: '你好！我是你的 AI 英语助手。有什么可以帮你的吗？' }
-  ]);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
-  // Caches for AI results to save tokens and time
+  // Helper to get active thread
+  const activeThread = threads.find(t => t.id === activeThreadId) || null;
+
   const [analysisCache, setAnalysisCache] = useState<Record<string, AnalysisResult>>({});
-  const [dictionaryCache, setDictionaryCache] = useState<Record<string, DictionaryResult>>({});
+  const [quickLookupCache, setQuickLookupCache] = useState<Record<string, QuickLookupResult>>({});
 
   const handleAnalyze = async (sentence: string) => {
     if (!sentence.trim() || isAnalyzerLoading) return;
@@ -77,73 +79,110 @@ const App: React.FC = () => {
 
   // Trigger Analysis via AI Assistant
   const handleTriggerAnalysis = async (text: string) => {
-    // 1. Reset messages to clear memory (User requirement: clicks clear previous memory)
-    setAiMessages([
-      { role: 'assistant', content: `正在为你分析句子：\n> "${text}"` }
-    ]);
+    // 1. Create a new thread for this analysis
+    const threadId = Date.now().toString();
+    const newThread: Thread = {
+      id: threadId,
+      title: `句法分析: ${text.slice(0, 20)}${text.length > 20 ? '...' : ''}`,
+      messages: [{ role: 'assistant', content: `正在为你分析句子：\n> "${text}"` }],
+      context: text,
+      contextType: 'sentence',
+      timestamp: Date.now()
+    };
+
+    setThreads(prev => [newThread, ...prev]);
+    setActiveThreadId(threadId);
     setAiIsOpen(true);
 
     // 2. Check Cache
     if (analysisCache[text]) {
-      setAiMessages([{
-        role: 'assistant',
-        content: `已从缓存加载句法分析：`,
-        type: 'analysis_result',
-        data: analysisCache[text]
-      }]);
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: [{
+          role: 'assistant',
+          content: `已从缓存加载句法分析：`,
+          type: 'analysis_result',
+          data: analysisCache[text]
+        }]
+      } : t));
       return;
     }
 
     // 3. Perform AI Analysis
     try {
       const result = await analyzeSentenceService(text);
-      
       setAnalysisCache(prev => ({ ...prev, [text]: result }));
-      setAiMessages([{
-        role: 'assistant',
-        content: `已完成句法分析：`,
-        type: 'analysis_result',
-        data: result
-      }]);
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: [{
+          role: 'assistant',
+          content: `已完成句法分析：`,
+          type: 'analysis_result',
+          data: result
+        }]
+      } : t));
     } catch (err: any) {
-      setAiMessages([{ role: 'assistant', content: `分析失败: ${err.message || '未知错误'}` }]);
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: [{ role: 'assistant', content: `分析失败: ${err.message || '未知错误'}` }]
+      } : t));
     }
   };
 
-  // Trigger Dictionary lookup via AI Assistant
-  const handleTriggerDictionary = async (word: string) => {
+  // Trigger Quick Lookup via AI Assistant (with context)
+  const handleTriggerDictionary = async (word: string, context: string) => {
     const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
     if (!cleanWord) return;
 
-    // 1. Reset memory
-    setAiMessages([
-      { role: 'assistant', content: `正在为你查词：**${cleanWord}**` }
-    ]);
+    const cacheKey = `${cleanWord}::${context}`;
+
+    // 1. Create a new thread
+    const threadId = Date.now().toString();
+    const newThread: Thread = {
+      id: threadId,
+      title: `单词查询: ${cleanWord}`,
+      messages: [{ role: 'assistant', content: `正在查询 **${cleanWord}** 在当前上下文中的含义...` }],
+      context: context,
+      contextType: 'word',
+      timestamp: Date.now()
+    };
+
+    setThreads(prev => [newThread, ...prev]);
+    setActiveThreadId(threadId);
     setAiIsOpen(true);
 
     // 2. Check Cache
-    if (dictionaryCache[cleanWord]) {
-       setAiMessages([{
-         role: 'assistant',
-         content: `已从缓存加载 **${cleanWord}** 的释义：`,
-         type: 'dictionary_result',
-         data: dictionaryCache[cleanWord]
-       }]);
+    if (quickLookupCache[cacheKey]) {
+       setThreads(prev => prev.map(t => t.id === threadId ? {
+         ...t,
+         messages: [{
+           role: 'assistant',
+           content: `已从缓存加载`,
+           type: 'quick_lookup_result',
+           data: quickLookupCache[cacheKey]
+         }]
+       } : t));
        return;
     }
 
-    // 3. Perform AI Lookup
+    // 3. Perform Quick Lookup
     try {
-      const result = await lookupWordService(cleanWord);
-      setDictionaryCache(prev => ({ ...prev, [cleanWord]: result }));
-      setAiMessages([{
-        role: 'assistant',
-        content: `查词结果：`,
-        type: 'dictionary_result',
-        data: result
-      }]);
+      const result = await quickLookupService(cleanWord, context);
+      setQuickLookupCache(prev => ({ ...prev, [cacheKey]: result }));
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: [{
+          role: 'assistant',
+          content: `查词结果：`,
+          type: 'quick_lookup_result',
+          data: result
+        }]
+      } : t));
     } catch (err: any) {
-      setAiMessages([{ role: 'assistant', content: `查词失败: ${err.message || '未知错误'}` }]);
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: [{ role: 'assistant', content: `查词失败: ${err.message || '未知错误'}` }]
+      } : t));
     }
   };
 
@@ -174,125 +213,146 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans transition-colors overflow-hidden">
-      <Header
-        activeTab={activeTab}
-        onNavigate={setActiveTab}
-      />
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <div className="h-full flex flex-col bg-gray-50 dark:bg-black text-gray-800 dark:text-gray-200 font-sans transition-colors overflow-hidden">
+        <Header
+          activeTab={activeTab}
+          onNavigate={setActiveTab}
+        />
 
-      <div className="flex-1 flex overflow-hidden relative">
-        <main className={`flex-1 overflow-y-auto ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' ? 'gap-2' : 'gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
+        <div className="flex-1 flex overflow-hidden relative">
+          <main className={`flex-1 overflow-y-auto ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' ? 'gap-2' : 'gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
 
-          {activeTab === 'analyzer' && (
-            <div className="w-full max-w-5xl flex flex-col gap-8">
-              {/* Hero Section */}
-              <div className="text-center space-y-4 mb-4">
-                <div className="inline-flex items-center justify-center p-2 bg-pink-50 dark:bg-pink-950/50 rounded-full text-pink-600 dark:text-pink-400 mb-2">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  <span className="text-sm font-medium">AI 驱动的英语语法分析</span>
+            {activeTab === 'analyzer' && (
+              <div className="w-full max-w-5xl flex flex-col gap-8">
+                {/* Hero Section */}
+                <div className="text-center space-y-4 mb-4">
+                  <div className="inline-flex items-center justify-center p-2 bg-pink-50 dark:bg-pink-950/50 rounded-full text-pink-600 dark:text-pink-400 mb-2">
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    <span className="text-sm font-medium">AI 驱动的英语语法分析</span>
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-50 font-serif">
+                    英语句子成分可视化
+                  </h1>
+                  <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                    输入任何英语句子，立刻解析其主谓宾定状补结构。
+                    <br className="hidden md:block" />适合英语学习者、教师及语言爱好者。
+                  </p>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-50 font-serif">
-                  英语句子成分可视化
-                </h1>
-                <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                  输入任何英语句子，立刻解析其主谓宾定状补结构。
-                  <br className="hidden md:block" />适合英语学习者、教师及语言爱好者。
-                </p>
-              </div>
 
-              {/* Input Section */}
-              <div className="w-full max-w-2xl mx-auto">
-                <InputArea onAnalyze={handleAnalyze} isLoading={isAnalyzerLoading} initialValue={DEMO_RESULT.englishSentence} />
-              </div>
+                {/* Input Section */}
+                <div className="w-full max-w-2xl mx-auto">
+                  <InputArea onAnalyze={handleAnalyze} isLoading={isAnalyzerLoading} initialValue={DEMO_RESULT.englishSentence} />
+                </div>
 
-              {/* Results Section */}
-              <div className="w-full">
-                {isAnalyzerLoading && (
-                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
-                    <p className="text-slate-500 dark:text-slate-400 animate-pulse">正在分析句子结构...</p>
-                  </div>
-                )}
-
-                {analyzerError && (
-                  <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3 text-red-700 dark:text-red-400 max-w-2xl mx-auto">
-                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-medium">分析出错</h3>
-                      <p className="text-sm mt-1 opacity-90">{analyzerError}</p>
+                {/* Results Section */}
+                <div className="w-full">
+                  {isAnalyzerLoading && (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
+                      <p className="text-gray-500 dark:text-gray-400 animate-pulse">正在分析句子结构...</p>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {analyzerResult && !isAnalyzerLoading && (
-                  <div className="animate-fade-in">
-                    <ResultDisplay result={analyzerResult} />
-                  </div>
-                )}
+                  {analyzerError && (
+                    <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3 text-red-700 dark:text-red-400 max-w-2xl mx-auto">
+                      <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="font-medium">分析出错</h3>
+                        <p className="text-sm mt-1 opacity-90">{analyzerError}</p>
+                      </div>
+                    </div>
+                  )}
 
-                {!analyzerResult && !isAnalyzerLoading && !analyzerError && (
-                  <div className="text-center py-12 opacity-40 flex flex-col items-center">
-                    <BookOpen className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-600" />
-                    <p>暂无分析结果，请在上方输入句子。</p>
-                  </div>
-                )}
+                  {analyzerResult && !isAnalyzerLoading && (
+                    <div className="animate-fade-in">
+                      <ResultDisplay result={analyzerResult} />
+                    </div>
+                  )}
+
+                  {!analyzerResult && !isAnalyzerLoading && !analyzerError && (
+                    <div className="text-center py-12 opacity-40 flex flex-col items-center">
+                      <BookOpen className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
+                      <p>暂无分析结果，请在上方输入句子。</p>
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
+
+            {activeTab === 'dictionary' && (
+              <DictionaryPage
+                initialResult={dictionaryResult}
+                onResultChange={setDictionaryResult}
+              />
+            )}
+
+            {activeTab === 'writing' && (
+              <WritingPage
+                initialResult={writingResult}
+                onResultChange={setWritingResult}
+              />
+            )}
+
+            {activeTab === 'youtube' && (
+              <YoutubeStudyPage 
+                onTriggerAnalysis={handleTriggerAnalysis} 
+                onTriggerDictionary={handleTriggerDictionary}
+              />
+            )}
+          </main>
+
+          {/* Pinned AI Assistant Sidebar */}
+          {aiIsPinned && (
+            <div className="w-[400px] 2xl:w-[450px] shrink-0 border-l border-gray-200 dark:border-gray-800/60 bg-white dark:bg-[#0d1117] z-20 transition-all duration-300">
+              <AiAssistant
+                currentContext={activeThread?.context || assistantContextContent}
+                contextType={activeThread?.contextType || contextType}
+                isOpen={aiIsOpen}
+                onOpenChange={setAiIsOpen}
+                messages={activeThread?.messages || []}
+                onMessagesChange={(newMsgs) => {
+                  if (activeThreadId) {
+                    setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: newMsgs } : t));
+                  }
+                }}
+                isPinned={true}
+                onPinChange={setAiIsPinned}
+                threads={threads}
+                activeThreadId={activeThreadId}
+                onSelectThread={setActiveThreadId}
+                onNewChat={() => {
+                  setActiveThreadId(null);
+                  // Optionally create an empty thread or just leave it blank for user to type
+                }}
+              />
             </div>
           )}
+        </div>
 
-          {activeTab === 'dictionary' && (
-            <DictionaryPage
-              initialResult={dictionaryResult}
-              onResultChange={setDictionaryResult}
-            />
-          )}
-
-          {activeTab === 'writing' && (
-            <WritingPage
-              initialResult={writingResult}
-              onResultChange={setWritingResult}
-            />
-          )}
-
-          {activeTab === 'youtube' && (
-            <YoutubeStudyPage 
-              onTriggerAnalysis={handleTriggerAnalysis} 
-              onTriggerDictionary={handleTriggerDictionary}
-            />
-          )}
-        </main>
-
-        {/* Pinned AI Assistant Sidebar */}
-        {aiIsPinned && (
-          <div className="w-[400px] 2xl:w-[450px] shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20 transition-all duration-300">
-            <AiAssistant
-              currentContext={assistantContextContent}
-              contextType={contextType}
-              isOpen={aiIsOpen}
-              onOpenChange={setAiIsOpen}
-              messages={aiMessages}
-              onMessagesChange={setAiMessages}
-              isPinned={true}
-              onPinChange={setAiIsPinned}
-            />
-          </div>
+        {/* Floating AI Assistant (Controlled) */}
+        {!aiIsPinned && (
+          <AiAssistant
+            currentContext={activeThread?.context || assistantContextContent}
+            contextType={activeThread?.contextType || contextType}
+            isOpen={aiIsOpen}
+            onOpenChange={setAiIsOpen}
+            messages={activeThread?.messages || []}
+            onMessagesChange={(newMsgs) => {
+              if (activeThreadId) {
+                setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: newMsgs } : t));
+              }
+            }}
+            isPinned={false}
+            onPinChange={setAiIsPinned}
+            threads={threads}
+            activeThreadId={activeThreadId}
+            onSelectThread={setActiveThreadId}
+            onNewChat={() => setActiveThreadId(null)}
+          />
         )}
       </div>
-
-      {/* Floating AI Assistant (Controlled) */}
-      {!aiIsPinned && (
-        <AiAssistant
-          currentContext={assistantContextContent}
-          contextType={contextType}
-          isOpen={aiIsOpen}
-          onOpenChange={setAiIsOpen}
-          messages={aiMessages}
-          onMessagesChange={setAiMessages}
-          isPinned={false}
-          onPinChange={setAiIsPinned}
-        />
-      )}
-    </div>
+    </ThemeProvider>
   );
 };
 

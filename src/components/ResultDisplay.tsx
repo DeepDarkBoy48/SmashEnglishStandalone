@@ -69,17 +69,17 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
             )}
 
             {/* Visualization Card */}
-            <div className={`bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 border border-slate-100 dark:border-slate-800 overflow-hidden relative transition-colors ${compact ? 'rounded-2xl' : 'rounded-[2rem]'}`}>
+            <div className={`bg-white dark:bg-[#0d1117] shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40 border border-gray-100 dark:border-gray-800/60 overflow-hidden relative transition-colors ${compact ? 'rounded-2xl' : 'rounded-[2rem]'}`}>
 
                 {/* Header / Controls */}
-                <div className={`bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-100 dark:border-slate-700 flex flex-col gap-4 transition-colors ${compact ? 'px-5 py-4' : 'px-8 py-6'}`}>
+                <div className={`bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col gap-4 transition-colors ${compact ? 'px-5 py-4' : 'px-8 py-6'}`}>
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div>
                             <h2 className="text-xs font-bold text-pink-500 dark:text-pink-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                                 <Sparkles className="w-3 h-3" />
                                 语法分析结果
                             </h2>
-                            <div className={`text-slate-700 dark:text-slate-300 font-medium tracking-wide leading-relaxed ${compact ? 'text-sm' : 'text-lg'}`}>
+                            <div className={`text-gray-700 dark:text-gray-300 font-medium tracking-wide leading-relaxed ${compact ? 'text-sm' : 'text-lg'}`}>
                                 {result.chineseTranslation}
                             </div>
 
@@ -103,14 +103,14 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                         <div className="flex items-center gap-2 self-start md:self-center">
                             <button
                                 onClick={speakText}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-medium transition-all text-xs ${isSpeaking ? 'bg-pink-100 dark:bg-pink-900/50 text-pink-600 dark:text-pink-400 ring-2 ring-pink-200 dark:ring-pink-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-pink-50 dark:hover:bg-pink-900/30 hover:text-pink-600 dark:hover:text-pink-400'}`}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-medium transition-all text-xs ${isSpeaking ? 'bg-pink-100 dark:bg-pink-900/50 text-pink-600 dark:text-pink-400 ring-2 ring-pink-200 dark:ring-pink-800' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-pink-50 dark:hover:bg-pink-900/30 hover:text-pink-600 dark:hover:text-pink-400'}`}
                                 title="朗读"
                             >
                                 <Volume2 className={`w-3 h-3 ${isSpeaking ? 'animate-pulse' : ''}`} />
                                 <span>{isSpeaking ? '朗读中...' : '朗读'}</span>
                             </button>
                             {!compact && (
-                                <button onClick={copyToClipboard} className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-all" title="复制">
+                                <button onClick={copyToClipboard} className="p-2.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-all" title="复制">
                                     <Copy className="w-4 h-4" />
                                 </button>
                             )}
@@ -119,7 +119,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                 </div>
 
                 {/* Main Visualizer (Chunks) */}
-                <div className={`flex flex-col justify-center items-center bg-white dark:bg-slate-900 transition-colors ${compact ? 'p-6 overflow-x-auto' : 'p-8 md:p-16'}`}>
+                <div className={`flex flex-col justify-center items-center bg-white dark:bg-[#0d1117] transition-colors ${compact ? 'p-6 overflow-x-auto' : 'p-8 md:p-16'}`}>
                     <div className={`flex flex-wrap items-start justify-center leading-none ${compact ? 'gap-x-4 gap-y-8' : 'gap-x-8 gap-y-14'}`}>
                         {result.chunks.map((chunk, index) => (
                             <ChunkColumn key={index} chunk={chunk} compact={compact} />
@@ -129,25 +129,25 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
             </div>
 
             {/* Detailed Breakdown Table (Lexical Units) */}
-            <div className={`bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-200/30 dark:shadow-slate-900/30 transition-colors ${compact ? 'rounded-2xl p-4' : 'rounded-[2rem] p-8'}`}>
-                <div className={`flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 ${compact ? 'mb-4 pb-2' : 'mb-8 pb-4'}`}>
+            <div className={`bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-gray-800/60 shadow-lg shadow-gray-200/30 dark:shadow-gray-900/30 transition-colors ${compact ? 'rounded-2xl p-4' : 'rounded-[2rem] p-8'}`}>
+                <div className={`flex items-center gap-3 border-b border-gray-100 dark:border-gray-800/60 ${compact ? 'mb-4 pb-2' : 'mb-8 pb-4'}`}>
                     <div className={`rounded-xl bg-pink-50 dark:bg-pink-950/50 flex items-center justify-center text-pink-600 dark:text-pink-400 ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}>
                         <BookOpen className={`${compact ? 'w-4 h-4' : 'w-6 h-6'}`} />
                     </div>
                     <div>
-                        <h3 className={`font-bold text-slate-800 dark:text-slate-200 ${compact ? 'text-sm' : 'text-xl'}`}>逐词/意群详解</h3>
-                        {!compact && <p className="text-slate-400 dark:text-slate-500 text-sm">深入理解重点词组与固定搭配</p>}
+                        <h3 className={`font-bold text-gray-800 dark:text-gray-200 ${compact ? 'text-sm' : 'text-xl'}`}>逐词/意群详解</h3>
+                        {!compact && <p className="text-gray-400 dark:text-gray-500 text-sm">深入理解重点词组与固定搭配</p>}
                     </div>
                 </div>
 
                 <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                     {result.detailedTokens.map((token, idx) => (
-                        <div key={idx} className="group flex flex-col bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-pink-200 dark:hover:border-pink-700 hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-pink-100/20 dark:hover:shadow-pink-900/10 transition-all duration-300 overflow-hidden">
+                        <div key={idx} className="group flex flex-col bg-gray-50/50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-pink-200 dark:hover:border-pink-700 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-pink-100/20 dark:hover:shadow-pink-900/10 transition-all duration-300 overflow-hidden">
                             {/* Card Header */}
-                            <div className={`border-b border-slate-100/50 dark:border-slate-700/50 group-hover:border-pink-50 dark:group-hover:border-pink-900/50 ${compact ? 'p-3' : 'p-5'}`}>
+                            <div className={`border-b border-gray-100/50 dark:border-gray-700/50 group-hover:border-pink-50 dark:group-hover:border-pink-900/50 ${compact ? 'p-3' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-1 gap-2">
-                                    <span className={`font-serif text-slate-800 dark:text-slate-200 font-medium tracking-tight leading-tight break-words ${compact ? 'text-lg' : 'text-2xl'}`}>{token.text}</span>
-                                    <span className="flex-shrink-0 px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider group-hover:bg-pink-100 dark:group-hover:bg-pink-900/50 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                                    <span className={`font-serif text-gray-800 dark:text-gray-200 font-medium tracking-tight leading-tight break-words ${compact ? 'text-lg' : 'text-2xl'}`}>{token.text}</span>
+                                    <span className="flex-shrink-0 px-2 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider group-hover:bg-pink-100 dark:group-hover:bg-pink-900/50 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
                                         {token.partOfSpeech}
                                     </span>
                                 </div>
@@ -157,14 +157,14 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                             </div>
 
                             {/* Card Body */}
-                            <div className={`bg-white dark:bg-slate-900 flex-grow flex flex-col gap-2 transition-colors ${compact ? 'p-3' : 'p-5'}`}>
+                            <div className={`bg-white dark:bg-[#0d1117] flex-grow flex flex-col gap-2 transition-colors ${compact ? 'p-3' : 'p-5'}`}>
                                 {!compact && (
                                     <div className="flex items-center gap-2">
                                         <span className="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
-                                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">句法成分</span>
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">句法成分</span>
                                     </div>
                                 )}
-                                <div className="text-xs text-slate-800 dark:text-slate-200 font-medium bg-slate-50 dark:bg-slate-800 inline-block self-start px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700">
+                                <div className="text-xs text-gray-800 dark:text-gray-200 font-medium bg-gray-50 dark:bg-gray-800 inline-block self-start px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-700">
                                     {token.role}
                                 </div>
 
@@ -172,10 +172,10 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                                     {!compact && (
                                         <div className="flex items-center gap-2 mb-1.5">
                                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">解析</span>
+                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">解析</span>
                                         </div>
                                     )}
-                                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                                         {token.explanation}
                                     </p>
                                 </div>
@@ -192,7 +192,7 @@ const ChunkColumn: React.FC<{ chunk: AnalysisChunk; compact: boolean }> = ({ chu
     return (
         <div className="flex flex-col items-center text-center group">
             {/* Top: English Text */}
-            <div className={`${compact ? 'text-xl md:text-2xl pb-2 mb-2' : 'text-4xl md:text-5xl px-2 pb-4 mb-4'} font-serif text-slate-800 dark:text-slate-200 border-b-[3px] border-pink-100 dark:border-pink-800 group-hover:border-pink-300 dark:group-hover:border-pink-600 transition-colors font-medium tracking-tight`}>
+            <div className={`${compact ? 'text-xl md:text-2xl pb-2 mb-2' : 'text-4xl md:text-5xl px-2 pb-4 mb-4'} font-serif text-gray-800 dark:text-gray-200 border-b-[3px] border-pink-100 dark:border-pink-800 group-hover:border-pink-300 dark:group-hover:border-pink-600 transition-colors font-medium tracking-tight`}>
                 {chunk.text}
             </div>
 
@@ -201,7 +201,7 @@ const ChunkColumn: React.FC<{ chunk: AnalysisChunk; compact: boolean }> = ({ chu
                 <span className={`${compact ? 'text-xs px-2 py-0.5' : 'text-base px-3 py-1'} font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/50 rounded-lg`}>
                     {chunk.grammarDescription}
                 </span>
-                <span className={`${compact ? 'text-[10px]' : 'text-sm'} text-slate-400 dark:text-slate-500 font-medium`}>
+                <span className={`${compact ? 'text-[10px]' : 'text-sm'} text-gray-400 dark:text-gray-500 font-medium`}>
                     {chunk.role}
                 </span>
             </div>
@@ -236,8 +236,8 @@ const CorrectionCard: React.FC<{ correction: Correction }> = ({ correction }) =>
                     </div>
 
                     {/* Diff Display */}
-                    <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-amber-100 dark:border-amber-800/50 shadow-sm transition-colors">
-                        <div className="font-serif text-xl leading-relaxed text-slate-800 dark:text-slate-200">
+                    <div className="bg-white dark:bg-[#0d1117] rounded-xl p-4 border border-amber-100 dark:border-amber-800/50 shadow-sm transition-colors">
+                        <div className="font-serif text-xl leading-relaxed text-gray-800 dark:text-gray-200">
                             {correction.changes.map((change, idx) => {
                                 if (change.type === 'remove') {
                                     return (
@@ -254,7 +254,7 @@ const CorrectionCard: React.FC<{ correction: Correction }> = ({ correction }) =>
                                     );
                                 }
                                 // Keep
-                                return <span key={idx} className="text-slate-700 dark:text-slate-300">{change.text}</span>;
+                                return <span key={idx} className="text-gray-700 dark:text-gray-300">{change.text}</span>;
                             })}
                         </div>
                     </div>

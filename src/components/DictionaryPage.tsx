@@ -172,10 +172,10 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
     return (
         <div className="w-full max-w-4xl mx-auto animate-fade-in pb-12">
             <div className="text-center space-y-4 mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-50 font-serif">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-50 font-serif">
                     AI 智能词典
                 </h1>
-                <p className="text-slate-600 dark:text-slate-400">
+                <p className="text-gray-600 dark:text-gray-400">
                     深度解析单词含义、词性搭配及地道例句
                 </p>
             </div>
@@ -188,7 +188,7 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="输入单词或词组 (例如: take up, resilience)"
-                        className="w-full pl-5 pr-14 py-4 text-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 focus:border-pink-400 dark:focus:border-pink-500 focus:ring-4 focus:ring-pink-50 dark:focus:ring-pink-900/50 transition-all outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        className="w-full pl-5 pr-14 py-4 text-lg rounded-2xl bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-gray-700 shadow-lg shadow-gray-200/50 dark:shadow-gray-900/50 focus:border-pink-400 dark:focus:border-pink-500 focus:ring-4 focus:ring-pink-50 dark:focus:ring-pink-900/50 transition-all outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         disabled={isLoading}
                     />
                     <button
@@ -210,25 +210,25 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
 
             {!result && !isLoading && !error && (
                 <div className="text-center py-12 opacity-40 flex flex-col items-center">
-                    <Book className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-600" />
+                    <Book className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
                     <p>输入单词开始查询</p>
                 </div>
             )}
 
             {/* Result Display */}
             {result && !isLoading && (
-                <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
+                <div className="bg-white dark:bg-[#0d1117] rounded-[2rem] shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40 border border-gray-100 dark:border-gray-800/60 overflow-hidden transition-colors">
                     {/* Header */}
-                    <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700 px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors">
+                    <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors">
                         <div>
-                            <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-50 font-serif tracking-tight leading-none mb-3">{result.word}</h2>
-                            <div className="text-xl text-slate-500 dark:text-slate-400 font-sans flex items-center gap-2 font-medium">
+                            <h2 className="text-5xl font-bold text-gray-900 dark:text-gray-50 font-serif tracking-tight leading-none mb-3">{result.word}</h2>
+                            <div className="text-xl text-gray-500 dark:text-gray-400 font-sans flex items-center gap-2 font-medium">
                                 <span>{result.phonetic}</span>
                             </div>
                         </div>
                         <button
                             onClick={() => speakText(result.word)}
-                            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-sm ${isSpeaking ? 'bg-pink-100 dark:bg-pink-900/50 text-pink-600 dark:text-pink-400 ring-4 ring-pink-50 dark:ring-pink-900/30' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-700 hover:shadow-md'}`}
+                            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-sm ${isSpeaking ? 'bg-pink-100 dark:bg-pink-900/50 text-pink-600 dark:text-pink-400 ring-4 ring-pink-50 dark:ring-pink-900/30' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-700 hover:shadow-md'}`}
                             title="播放发音"
                         >
                             {isSpeaking ? <Loader2 className="w-6 h-6 animate-spin" /> : <Volume2 className="w-7 h-7" />}
@@ -242,7 +242,7 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
 
                                 {/* Entry Header Row (New Layout) */}
                                 <div className="flex items-center gap-3 mb-6">
-                                    <span className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-md shadow-slate-200 dark:shadow-slate-900">
+                                    <span className="bg-[#0d1117] dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-md shadow-gray-200 dark:shadow-gray-900">
                                         {entry.partOfSpeech}
                                     </span>
 
@@ -253,7 +253,7 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
                                         </span>
                                     )}
 
-                                    <div className="h-px bg-slate-100 dark:bg-slate-700 flex-grow ml-2"></div>
+                                    <div className="h-px bg-gray-100 dark:bg-gray-700 flex-grow ml-2"></div>
                                 </div>
 
                                 {/* Definitions List */}
@@ -262,24 +262,24 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
                                         <div key={dIdx} className="relative grid grid-cols-[auto_1fr] gap-4">
                                             {/* Index Number */}
                                             <div className="flex justify-center pt-1">
-                                                <span className="text-slate-300 dark:text-slate-600 font-bold text-lg font-serif select-none">{dIdx + 1}.</span>
+                                                <span className="text-gray-300 dark:text-gray-600 font-bold text-lg font-serif select-none">{dIdx + 1}.</span>
                                             </div>
 
                                             <div className="flex flex-col gap-2">
                                                 {/* Meaning & Explanation */}
                                                 <div>
-                                                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-1 leading-snug">{def.meaning}</h3>
-                                                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                                                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-1 leading-snug">{def.meaning}</h3>
+                                                    <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
                                                         {def.explanation}
                                                     </p>
                                                 </div>
 
                                                 {/* Example Box */}
-                                                <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 group-hover/def hover:border-pink-100 dark:hover:border-pink-800 hover:bg-pink-50/30 dark:hover:bg-pink-950/20 transition-colors">
-                                                    <p className="font-serif text-lg text-slate-800 dark:text-slate-200 mb-2 leading-relaxed">
+                                                <div className="mt-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-100 dark:border-gray-700 group-hover/def hover:border-pink-100 dark:hover:border-pink-800 hover:bg-pink-50/30 dark:hover:bg-pink-950/20 transition-colors">
+                                                    <p className="font-serif text-lg text-gray-800 dark:text-gray-200 mb-2 leading-relaxed">
                                                         {def.example}
                                                     </p>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-start gap-2">
                                                         <Sparkles className="w-3.5 h-3.5 mt-0.5 text-pink-400 shrink-0" />
                                                         {def.exampleTranslation}
                                                     </p>
@@ -294,30 +294,30 @@ export const DictionaryPage: React.FC<DictionaryPageProps> = ({ initialResult, o
 
                     {/* Collocations Section */}
                     {result.collocations && result.collocations.length > 0 && (
-                        <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30 p-6 md:p-10 transition-colors">
+                        <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 p-6 md:p-10 transition-colors">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center ring-4 ring-violet-50 dark:ring-violet-900/30">
                                     <Link2 className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">常用搭配 & 习惯用语</h3>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">掌握地道表达与固定用法</p>
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">常用搭配 & 习惯用语</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">掌握地道表达与固定用法</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {result.collocations.map((col, idx) => (
-                                    <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-lg hover:shadow-violet-100/20 dark:hover:shadow-violet-900/10 transition-all group">
+                                    <div key={idx} className="bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-lg hover:shadow-violet-100/20 dark:hover:shadow-violet-900/10 transition-all group">
                                         <div className="flex flex-col gap-1 mb-3">
-                                            <span className="font-bold text-lg text-slate-800 dark:text-slate-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">{col.phrase}</span>
-                                            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{col.meaning}</span>
+                                            <span className="font-bold text-lg text-gray-800 dark:text-gray-200 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">{col.phrase}</span>
+                                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{col.meaning}</span>
                                         </div>
 
-                                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700 group-hover:bg-violet-50/30 dark:group-hover:bg-violet-950/20 group-hover:border-violet-100 dark:group-hover:border-violet-800 transition-colors">
-                                            <p className="font-serif text-slate-700 dark:text-slate-300 text-sm mb-1.5 leading-relaxed">
+                                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700 group-hover:bg-violet-50/30 dark:group-hover:bg-violet-950/20 group-hover:border-violet-100 dark:group-hover:border-violet-800 transition-colors">
+                                            <p className="font-serif text-gray-700 dark:text-gray-300 text-sm mb-1.5 leading-relaxed">
                                                 "{col.example}"
                                             </p>
-                                            <p className="text-xs text-slate-400 dark:text-slate-500">
+                                            <p className="text-xs text-gray-400 dark:text-gray-500">
                                                 {col.exampleTranslation}
                                             </p>
                                         </div>

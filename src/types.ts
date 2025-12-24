@@ -88,7 +88,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   data?: any;
-  type?: 'text' | 'analysis_result' | 'dictionary_result';
+  type?: 'text' | 'analysis_result' | 'dictionary_result' | 'quick_lookup_result';
 }
 
 // --- Model Configuration ---
@@ -96,3 +96,20 @@ export type ModelLevel = 'mini' | 'quick' | 'deep';
 
 // --- Page Mode ---
 export type PageMode = 'writing' | 'reading';  // 写作纠错 | 文章精读
+
+// --- Quick Lookup Result ---
+export interface QuickLookupResult {
+  word: string;
+  contextMeaning: string;  // 在此上下文中的释义
+  explanation: string;     // 解释为什么是这个意思
+}
+
+// --- Multi-thread AI Assistant ---
+export interface Thread {
+  id: string;
+  title: string;
+  messages: Message[];
+  context: string | null;
+  contextType: 'sentence' | 'word' | 'writing';
+  timestamp: number;
+}

@@ -257,7 +257,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
             {/* Header - Centered Layout (Compact on Mobile) */}
             <div className="flex flex-col items-center shrink-0 gap-3 md:gap-6 mb-1 md:mb-2">
                 <div className="text-center">
-                    <h1 className="text-xl md:text-3xl font-bold text-slate-900 dark:text-slate-50 font-serif flex items-center justify-center gap-2">
+                    <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-gray-50 font-serif flex items-center justify-center gap-2">
                         {pageMode === 'writing' ? (
                             <PenTool className="w-5 h-5 md:w-6 md:h-6 text-pink-500 dark:text-pink-400" />
                         ) : (
@@ -265,7 +265,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                         )}
                         {pageMode === 'writing' ? 'AI 写作润色' : 'AI 文章精读'}
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm mt-1 md:mt-2">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-1 md:mt-2">
                         {PAGE_MODES.find(m => m.value === pageMode)?.description}
                     </p>
                 </div>
@@ -295,7 +295,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                     {/* Dropdown Menu */}
                     {isPageModeDropdownOpen && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden z-50 animate-fade-in">
+                        <div className="absolute top-full left-1/2 -trangray-x-1/2 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50 animate-fade-in">
                             {PAGE_MODES.map((m) => {
                                 const Icon = m.icon;
                                 const isActive = pageMode === m.value;
@@ -307,14 +307,14 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                             w-full flex items-center gap-3 px-4 py-3 text-left text-sm transition-colors
                                             ${isActive
                                                 ? (m.value === 'writing' ? 'bg-green-50 dark:bg-green-950/50 text-green-900 dark:text-green-200' : 'bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200')
-                                                : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                                : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                                             }
                                         `}
                                     >
-                                        <Icon className={`w-4 h-4 ${isActive ? (m.value === 'writing' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400') : 'text-slate-400 dark:text-slate-500'}`} />
+                                        <Icon className={`w-4 h-4 ${isActive ? (m.value === 'writing' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400') : 'text-gray-400 dark:text-gray-500'}`} />
                                         <div>
                                             <div className="font-bold">{m.label}</div>
-                                            <div className="text-xs text-slate-400 dark:text-slate-500">{m.description}</div>
+                                            <div className="text-xs text-gray-400 dark:text-gray-500">{m.description}</div>
                                         </div>
                                         {isActive && (
                                             <CheckCircle2 className={`w-4 h-4 ml-auto ${m.value === 'writing' ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'}`} />
@@ -339,15 +339,15 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                 {pageMode === 'writing' && (
                     <div className={`flex flex-col gap-2 md:gap-3 transition-all duration-500 h-full ${result ? 'hidden' : 'w-full mx-auto max-w-4xl'}`}>
                         <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">原文输入</label>
-                            <span className="text-[10px] md:text-xs text-slate-300 dark:text-slate-600">{inputText.length} 字符</span>
+                            <label className="text-[10px] md:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">原文输入</label>
+                            <span className="text-[10px] md:text-xs text-gray-300 dark:text-gray-600">{inputText.length} 字符</span>
                         </div>
                         <div className="flex-grow relative pb-16 md:pb-0">
                             <textarea
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 placeholder="请在此粘贴或输入英语文章/段落..."
-                                className="w-full h-full p-4 md:p-6 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-base md:text-lg leading-relaxed resize-none focus:ring-4 focus:ring-pink-50 dark:focus:ring-pink-900/50 focus:border-pink-300 dark:focus:border-pink-700 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-600 font-serif whitespace-pre-wrap transition-colors"
+                                className="w-full h-full p-4 md:p-6 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0d1117] text-gray-700 dark:text-gray-300 text-base md:text-lg leading-relaxed resize-none focus:ring-4 focus:ring-pink-50 dark:focus:ring-pink-900/50 focus:border-pink-300 dark:focus:border-pink-700 outline-none shadow-sm placeholder:text-gray-300 dark:placeholder:text-gray-600 font-serif whitespace-pre-wrap transition-colors"
                                 disabled={isLoading}
                             />
                             {/* Desktop: Inline Buttons */}
@@ -355,7 +355,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                 <button
                                     onClick={handleDemo}
                                     disabled={isLoading}
-                                    className="px-4 py-3 rounded-xl font-medium shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                                    className="px-4 py-3 rounded-xl font-medium shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                                 >
                                     <Lightbulb className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                                     <span>Demo 演示</span>
@@ -372,12 +372,12 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                 </button>
                             </div>
                             {/* Mobile: Fixed Bottom Buttons */}
-                            <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 p-3 bg-gradient-to-t from-white via-white dark:from-slate-950 dark:via-slate-950 to-transparent pt-6">
+                            <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 p-3 bg-gradient-to-t from-white via-white dark:from-gray-950 dark:via-gray-950 to-transparent pt-6">
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleDemo}
                                         disabled={isLoading}
-                                        className="px-3 py-2.5 rounded-xl font-medium shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                                        className="px-3 py-2.5 rounded-xl font-medium shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
                                     >
                                         <Lightbulb className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                                         <span className="text-sm">Demo</span>
@@ -403,14 +403,14 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                     <div className="flex flex-col gap-2 md:gap-3 transition-all duration-500 h-full w-full mx-auto max-w-4xl">
                         <div className="flex justify-between items-center px-1">
                             <label className="text-[10px] md:text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">文章输入</label>
-                            <span className="text-[10px] md:text-xs text-slate-300 dark:text-slate-600">{inputText.length} 字符</span>
+                            <span className="text-[10px] md:text-xs text-gray-300 dark:text-gray-600">{inputText.length} 字符</span>
                         </div>
                         <div className="flex-grow relative pb-16 md:pb-0">
                             <textarea
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 placeholder="请在此粘贴或输入要精读的英语文章..."
-                                className="w-full h-full p-4 md:p-6 rounded-xl md:rounded-2xl border border-amber-100 dark:border-amber-800/50 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-base md:text-lg leading-relaxed resize-none focus:ring-4 focus:ring-amber-50 dark:focus:ring-amber-900/50 focus:border-amber-300 dark:focus:border-amber-700 outline-none shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-600 font-serif whitespace-pre-wrap transition-colors"
+                                className="w-full h-full p-4 md:p-6 rounded-xl md:rounded-2xl border border-amber-100 dark:border-amber-800/50 bg-white dark:bg-[#0d1117] text-gray-700 dark:text-gray-300 text-base md:text-lg leading-relaxed resize-none focus:ring-4 focus:ring-amber-50 dark:focus:ring-amber-900/50 focus:border-amber-300 dark:focus:border-amber-700 outline-none shadow-sm placeholder:text-gray-300 dark:placeholder:text-gray-600 font-serif whitespace-pre-wrap transition-colors"
                             />
                             {/* Desktop: Inline Button */}
                             <div className="hidden md:block absolute bottom-4 right-4">
@@ -424,7 +424,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                 </button>
                             </div>
                             {/* Mobile: Fixed Bottom Button */}
-                            <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 p-3 bg-gradient-to-t from-white via-white dark:from-slate-950 dark:via-slate-950 to-transparent pt-6">
+                            <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 p-3 bg-gradient-to-t from-white via-white dark:from-gray-950 dark:via-gray-950 to-transparent pt-6">
                                 <button
                                     onClick={handleStartReading}
                                     disabled={!inputText.trim()}
@@ -452,20 +452,20 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                         <span className="hidden sm:inline">{MODES.find(m => m.value === result.mode)?.label || '结果'}</span>
                                         <span className="sm:hidden">{MODES.find(m => m.value === result.mode)?.shortLabel || '纠错'}</span>
                                     </label>
-                                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                                    <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
                                         {result.segments.filter(s => s.type === 'change').length} 处修改
                                     </span>
                                 </div>
 
                                 {/* Divider */}
-                                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 shrink-0 hidden md:block"></div>
+                                <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0 hidden md:block"></div>
 
                                 {/* Action Buttons - Scrollable on Mobile */}
                                 <div className="flex items-center gap-1.5 md:gap-3 ml-auto shrink-0">
                                     {isDiffView && (
                                         <button
                                             onClick={() => setShowOriginal(!showOriginal)}
-                                            className={`text-[10px] md:text-xs flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-colors font-medium border shadow-sm whitespace-nowrap ${showOriginal ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-800 dark:border-slate-100 hover:bg-slate-900 dark:hover:bg-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                            className={`text-[10px] md:text-xs flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-colors font-medium border shadow-sm whitespace-nowrap ${showOriginal ? 'bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-800/60 dark:border-gray-100 hover:bg-[#0d1117] dark:hover:bg-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                                         >
                                             <Eye className="w-3 h-3 md:w-3.5 md:h-3.5" />
                                             <span className="hidden sm:inline">{showOriginal ? '返回修订' : '查看原文'}</span>
@@ -474,7 +474,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     )}
                                     <button
                                         onClick={copyFullText}
-                                        className="text-[10px] md:text-xs flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-colors font-medium shadow-sm whitespace-nowrap"
+                                        className="text-[10px] md:text-xs flex items-center gap-1 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-colors font-medium shadow-sm whitespace-nowrap"
                                     >
                                         <Copy className="w-3 h-3 md:w-3.5 md:h-3.5" />
                                         <span className="hidden sm:inline">复制全文</span>
@@ -497,15 +497,15 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                         <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 relative">
 
                             {/* LEFT COLUMN: Text View (Diff or Syntax) */}
-                            <div className={`flex flex-col bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 h-full transition-colors ${isIeltsMode(result.mode) ? 'border-indigo-100/80 dark:border-indigo-800/50' : 'border-green-100/80 dark:border-green-800/50'}`}>
+                            <div className={`flex flex-col bg-white dark:bg-[#0d1117] rounded-2xl md:rounded-3xl border overflow-hidden shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40 h-full transition-colors ${isIeltsMode(result.mode) ? 'border-indigo-100/80 dark:border-indigo-800/50' : 'border-green-100/80 dark:border-green-800/50'}`}>
                                 {/* Header / Mode Switcher */}
-                                <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700 px-3 md:px-6 py-2 md:py-3 flex flex-wrap items-center justify-between text-[10px] md:text-sm text-slate-500 dark:text-slate-400 shrink-0 gap-1.5 md:gap-2 transition-colors">
+                                <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 px-3 md:px-6 py-2 md:py-3 flex flex-wrap items-center justify-between text-[10px] md:text-sm text-gray-500 dark:text-gray-400 shrink-0 gap-1.5 md:gap-2 transition-colors">
 
                                     {/* Mode Toggle */}
-                                    <div className="flex p-0.5 md:p-1 bg-slate-200/60 dark:bg-slate-700/60 rounded-lg">
+                                    <div className="flex p-0.5 md:p-1 bg-gray-200/60 dark:bg-gray-700/60 rounded-lg">
                                         <button
                                             onClick={() => setViewMode('diff')}
-                                            className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 md:gap-1.5 ${viewMode === 'diff' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                            className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 md:gap-1.5 ${viewMode === 'diff' ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                                         >
                                             <Split className="w-2.5 h-2.5 md:w-3 md:h-3" />
                                             <span className="hidden sm:inline">改写对比 (Diff)</span>
@@ -513,7 +513,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                         </button>
                                         <button
                                             onClick={() => setViewMode('syntax')}
-                                            className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 md:gap-1.5 ${viewMode === 'syntax' ? 'bg-white dark:bg-slate-600 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                            className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 md:gap-1.5 ${viewMode === 'syntax' ? 'bg-white dark:bg-gray-600 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                                         >
                                             <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3" />
                                             句法分析
@@ -524,7 +524,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     {viewMode === 'diff' && !showOriginal && (
                                         <div className="hidden md:flex items-center gap-4 ml-auto">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400/50 dark:bg-slate-500/50"></span>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400/50 dark:bg-gray-500/50"></span>
                                                 <span className="line-through opacity-70">原文</span>
                                             </div>
                                             <ArrowRight className="w-3 h-3 opacity-30" />
@@ -534,8 +534,8 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                                     修改后
                                                 </span>
                                             </div>
-                                            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                                            <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                                            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                                            <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
                                                 <MousePointerClick className="w-3 h-3" />
                                                 <span className="text-[10px]">点击详情</span>
                                             </div>
@@ -543,7 +543,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     )}
                                     {/* Mobile Legend Hint */}
                                     {viewMode === 'diff' && !showOriginal && (
-                                        <div className="flex md:hidden items-center gap-1 ml-auto text-slate-400 dark:text-slate-500">
+                                        <div className="flex md:hidden items-center gap-1 ml-auto text-gray-400 dark:text-gray-500">
                                             <MousePointerClick className="w-2.5 h-2.5" />
                                             <span className="text-[9px]">点击详情</span>
                                         </div>
@@ -559,7 +559,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                                 {/* Scrollable Text Area */}
                                 <div className="p-4 md:p-10 overflow-y-auto custom-scrollbar flex-grow pb-20 lg:pb-4">
-                                    <div className="font-serif text-base md:text-xl leading-relaxed md:leading-loose text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                                    <div className="font-serif text-base md:text-xl leading-relaxed md:leading-loose text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                                         {viewMode === 'diff' ? (
                                             showOriginal ? (
                                                 inputText
@@ -595,7 +595,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                             {/* RIGHT COLUMN: Details Panel - Desktop */}
                             <div className="hidden lg:flex flex-col h-full min-h-0">
-                                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-200/30 dark:shadow-slate-900/30 h-full overflow-hidden flex flex-col relative transition-colors">
+                                <div className="bg-white dark:bg-[#0d1117] rounded-3xl border border-gray-100 dark:border-gray-800/60 shadow-lg shadow-gray-200/30 dark:shadow-gray-900/30 h-full overflow-hidden flex flex-col relative transition-colors">
 
                                     {/* Header */}
                                     <div className={`px-5 py-4 border-b shrink-0 flex items-center gap-2 transition-colors ${viewMode === 'syntax' ? 'bg-pink-50/50 dark:bg-pink-950/30 border-pink-100 dark:border-pink-800/50' : (isIeltsMode(result.mode) ? 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-800/50' : 'bg-green-50/50 dark:bg-green-950/30 border-green-100 dark:border-green-800/50')}`}>
@@ -626,11 +626,11 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     </div>
 
                                     {/* Content */}
-                                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 dark:bg-slate-800/30 relative transition-colors">
+                                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-gray-50/30 dark:bg-gray-800/30 relative transition-colors">
                                         {viewMode === 'syntax' ? (
                                             <div className="p-0 h-full">
                                                 {isSyntaxLoading ? (
-                                                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500 gap-3">
+                                                    <div className="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-500 gap-3">
                                                         <Loader2 className="w-8 h-8 animate-spin text-pink-400" />
                                                         <p className="text-sm">正在解析句子结构...</p>
                                                     </div>
@@ -638,8 +638,8 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                                     <ResultDisplay result={syntaxResult} compact={true} />
                                                 ) : (
                                                     <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-50">
-                                                        <MousePointerClick className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
-                                                        <p className="text-slate-500 dark:text-slate-400 text-sm">请点击左侧文章中的<br />任意句子进行分析</p>
+                                                        <MousePointerClick className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+                                                        <p className="text-gray-500 dark:text-gray-400 text-sm">请点击左侧文章中的<br />任意句子进行分析</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -662,14 +662,14 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                                     {/* Footer Hint (Diff Mode Only) */}
                                     {viewMode === 'diff' && activeSegmentIndex === null && (
-                                        <div className="p-3 text-center text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 transition-colors">
+                                        <div className="p-3 text-center text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 transition-colors">
                                             点击左侧 <span className={`${isIeltsMode(result.mode) ? 'text-indigo-500 dark:text-indigo-400' : 'text-green-500 dark:text-green-400'} font-bold`}>高亮区域</span> 查看具体修改原因
                                         </div>
                                     )}
                                     {viewMode === 'diff' && activeSegmentIndex !== null && (
                                         <button
                                             onClick={() => setActiveSegmentIndex(null)}
-                                            className="p-3 text-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-t border-slate-100 dark:border-slate-700 transition-colors font-medium"
+                                            className="p-3 text-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 transition-colors font-medium"
                                         >
                                             返回整体点评
                                         </button>
@@ -683,7 +683,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                 <button
                                     onClick={() => setIsMobileDetailOpen(!isMobileDetailOpen)}
                                     className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${isMobileDetailOpen
-                                        ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                                        ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900'
                                         : (viewMode === 'syntax'
                                             ? 'bg-pink-500 text-white'
                                             : 'bg-green-500 text-white')
@@ -699,16 +699,16 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                             {/* MOBILE: Bottom Drawer for Details */}
                             <div
-                                className={`lg:hidden fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 ease-out ${isMobileDetailOpen ? 'translate-y-0' : 'translate-y-full'
+                                className={`lg:hidden fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 ease-out ${isMobileDetailOpen ? 'trangray-y-0' : 'trangray-y-full'
                                     }`}
                             >
-                                <div className="bg-white dark:bg-slate-900 rounded-t-3xl border-t border-slate-200 dark:border-slate-700 shadow-2xl h-[75vh] flex flex-col">
+                                <div className="bg-white dark:bg-[#0d1117] rounded-t-3xl border-t border-gray-200 dark:border-gray-700 shadow-2xl h-[75vh] flex flex-col">
                                     {/* Drawer Handle */}
                                     <div
                                         className="flex justify-center py-2 cursor-pointer"
                                         onClick={() => setIsMobileDetailOpen(false)}
                                     >
-                                        <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                                        <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
                                     </div>
 
                                     {/* Header */}
@@ -742,7 +742,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                         {viewMode === 'diff' && activeSegmentIndex !== null && (
                                             <button
                                                 onClick={() => setActiveSegmentIndex(null)}
-                                                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                             >
                                                 返回整体点评
                                             </button>
@@ -750,11 +750,11 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     </div>
 
                                     {/* Content */}
-                                    <div className="overflow-y-auto flex-grow bg-slate-50/30 dark:bg-slate-800/30">
+                                    <div className="overflow-y-auto flex-grow bg-gray-50/30 dark:bg-gray-800/30">
                                         {viewMode === 'syntax' ? (
                                             <div className="p-0 h-full">
                                                 {isSyntaxLoading ? (
-                                                    <div className="flex flex-col items-center justify-center h-48 text-slate-400 dark:text-slate-500 gap-3">
+                                                    <div className="flex flex-col items-center justify-center h-48 text-gray-400 dark:text-gray-500 gap-3">
                                                         <Loader2 className="w-6 h-6 animate-spin text-pink-400" />
                                                         <p className="text-sm">正在解析句子结构...</p>
                                                     </div>
@@ -762,8 +762,8 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                                     <ResultDisplay result={syntaxResult} compact={true} />
                                                 ) : (
                                                     <div className="flex flex-col items-center justify-center h-48 p-6 text-center opacity-50">
-                                                        <MousePointerClick className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
-                                                        <p className="text-slate-500 dark:text-slate-400 text-sm">请点击文章中的任意句子进行分析</p>
+                                                        <MousePointerClick className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-2" />
+                                                        <p className="text-gray-500 dark:text-gray-400 text-sm">请点击文章中的任意句子进行分析</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -785,7 +785,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     </div>
 
                                     {/* Safe Area Padding for iOS */}
-                                    <div className="h-6 bg-white dark:bg-slate-900"></div>
+                                    <div className="h-6 bg-white dark:bg-[#0d1117]"></div>
                                 </div>
                             </div>
 
@@ -800,7 +800,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                         </div>
 
                         {/* Mobile: Fixed Bottom Start Button */}
-                        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-10 p-3 bg-gradient-to-t from-white via-white dark:from-slate-950 dark:via-slate-950 to-transparent pt-8">
+                        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-10 p-3 bg-gradient-to-t from-white via-white dark:from-gray-950 dark:via-gray-950 to-transparent pt-8">
                             <button
                                 onClick={handleReset}
                                 className="w-full px-5 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 active:scale-98"
@@ -828,7 +828,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                             <div className="flex items-center gap-2 md:gap-3">
                                 <button
                                     onClick={handleReset}
-                                    className="text-[10px] md:text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 px-2 py-1 transition-colors"
+                                    className="text-[10px] md:text-xs flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 transition-colors"
                                 >
                                     <X className="w-3.5 h-3.5 md:w-4 md:h-4" /> 重新选择
                                 </button>
@@ -839,9 +839,9 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                         <div className="flex-grow min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 relative">
 
                             {/* LEFT COLUMN: Text View */}
-                            <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-amber-100/80 dark:border-amber-800/50 overflow-hidden shadow-xl shadow-amber-100/30 dark:shadow-amber-900/20 h-full transition-colors">
+                            <div className="flex flex-col bg-white dark:bg-[#0d1117] rounded-2xl md:rounded-3xl border border-amber-100/80 dark:border-amber-800/50 overflow-hidden shadow-xl shadow-amber-100/30 dark:shadow-amber-900/20 h-full transition-colors">
                                 {/* Header */}
-                                <div className="bg-amber-50/50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-800/50 px-3 md:px-6 py-2 md:py-3 flex flex-wrap items-center justify-between text-[10px] md:text-sm text-slate-500 dark:text-slate-400 shrink-0 gap-1.5 md:gap-2 transition-colors">
+                                <div className="bg-amber-50/50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-800/50 px-3 md:px-6 py-2 md:py-3 flex flex-wrap items-center justify-between text-[10px] md:text-sm text-gray-500 dark:text-gray-400 shrink-0 gap-1.5 md:gap-2 transition-colors">
                                     <div className="flex items-center gap-1.5 md:gap-2 text-amber-700 dark:text-amber-400 font-bold">
                                         <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                         原文阅读
@@ -855,7 +855,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                                 {/* Scrollable Text Area */}
                                 <div className="p-4 md:p-10 overflow-y-auto custom-scrollbar flex-grow pb-20 lg:pb-4">
-                                    <div className="font-serif text-base md:text-xl leading-relaxed md:leading-loose text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                                    <div className="font-serif text-base md:text-xl leading-relaxed md:leading-loose text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                                         <SyntaxModeTextRenderer
                                             fullText={readingText}
                                             activeSentence={activeSentence}
@@ -871,7 +871,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                             {/* RIGHT COLUMN: Details Panel - Desktop Only */}
                             <div className="hidden lg:flex flex-col h-full min-h-0">
-                                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-200/30 dark:shadow-slate-900/30 h-full overflow-hidden flex flex-col relative transition-colors">
+                                <div className="bg-white dark:bg-[#0d1117] rounded-3xl border border-gray-100 dark:border-gray-800/60 shadow-lg shadow-gray-200/30 dark:shadow-gray-900/30 h-full overflow-hidden flex flex-col relative transition-colors">
 
                                     {/* Header */}
                                     <div className="px-5 py-4 border-b shrink-0 flex items-center gap-2 bg-amber-50/50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-800/50 transition-colors">
@@ -882,10 +882,10 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     </div>
 
                                     {/* Content */}
-                                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-slate-50/30 dark:bg-slate-800/30 relative transition-colors">
+                                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-gray-50/30 dark:bg-gray-800/30 relative transition-colors">
                                         <div className="p-0 h-full">
                                             {isSyntaxLoading ? (
-                                                <div className="flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500 gap-3">
+                                                <div className="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-500 gap-3">
                                                     <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
                                                     <p className="text-sm">正在解析句子结构...</p>
                                                 </div>
@@ -893,8 +893,8 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                                 <ResultDisplay result={syntaxResult} compact={true} />
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-50">
-                                                    <MousePointerClick className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
-                                                    <p className="text-slate-500 dark:text-slate-400 text-sm">请点击左侧文章中的<br />任意句子进行分析</p>
+                                                    <MousePointerClick className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+                                                    <p className="text-gray-500 dark:text-gray-400 text-sm">请点击左侧文章中的<br />任意句子进行分析</p>
                                                 </div>
                                             )}
                                         </div>
@@ -907,7 +907,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                 <button
                                     onClick={() => setIsMobileDetailOpen(!isMobileDetailOpen)}
                                     className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${isMobileDetailOpen
-                                        ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                                        ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900'
                                         : 'bg-amber-500 text-white'
                                         }`}
                                 >
@@ -921,16 +921,16 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
 
                             {/* MOBILE: Bottom Drawer for Details */}
                             <div
-                                className={`lg:hidden fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 ease-out ${isMobileDetailOpen ? 'translate-y-0' : 'translate-y-full'
+                                className={`lg:hidden fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 ease-out ${isMobileDetailOpen ? 'trangray-y-0' : 'trangray-y-full'
                                     }`}
                             >
-                                <div className="bg-white dark:bg-slate-900 rounded-t-3xl border-t border-slate-200 dark:border-slate-700 shadow-2xl h-[75vh] flex flex-col">
+                                <div className="bg-white dark:bg-[#0d1117] rounded-t-3xl border-t border-gray-200 dark:border-gray-700 shadow-2xl h-[75vh] flex flex-col">
                                     {/* Drawer Handle */}
                                     <div
                                         className="flex justify-center py-2 cursor-pointer"
                                         onClick={() => setIsMobileDetailOpen(false)}
                                     >
-                                        <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                                        <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
                                     </div>
 
                                     {/* Header */}
@@ -942,10 +942,10 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                     </div>
 
                                     {/* Content */}
-                                    <div className="overflow-y-auto flex-grow bg-slate-50/30 dark:bg-slate-800/30">
+                                    <div className="overflow-y-auto flex-grow bg-gray-50/30 dark:bg-gray-800/30">
                                         <div className="p-0 h-full">
                                             {isSyntaxLoading ? (
-                                                <div className="flex flex-col items-center justify-center h-48 text-slate-400 dark:text-slate-500 gap-3">
+                                                <div className="flex flex-col items-center justify-center h-48 text-gray-400 dark:text-gray-500 gap-3">
                                                     <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
                                                     <p className="text-sm">正在解析句子结构...</p>
                                                 </div>
@@ -953,15 +953,15 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
                                                 <ResultDisplay result={syntaxResult} compact={true} />
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center h-48 p-6 text-center opacity-50">
-                                                    <MousePointerClick className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
-                                                    <p className="text-slate-500 dark:text-slate-400 text-sm">请点击文章中的任意句子进行分析</p>
+                                                    <MousePointerClick className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-2" />
+                                                    <p className="text-gray-500 dark:text-gray-400 text-sm">请点击文章中的任意句子进行分析</p>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Safe Area Padding for iOS */}
-                                    <div className="h-6 bg-white dark:bg-slate-900"></div>
+                                    <div className="h-6 bg-white dark:bg-[#0d1117]"></div>
                                 </div>
                             </div>
 
@@ -1017,11 +1017,11 @@ const SyntaxModeTextRenderer: React.FC<{
     const themeClasses = themeColor === 'amber'
         ? {
             active: 'bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200 ring-2 ring-amber-200 dark:ring-amber-700 shadow-sm font-medium',
-            hover: 'hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:text-amber-700 dark:hover:text-amber-300 text-slate-600 dark:text-slate-400 active:bg-amber-100 dark:active:bg-amber-900/50'
+            hover: 'hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:text-amber-700 dark:hover:text-amber-300 text-gray-600 dark:text-gray-400 active:bg-amber-100 dark:active:bg-amber-900/50'
         }
         : {
             active: 'bg-pink-100 dark:bg-pink-900/50 text-pink-900 dark:text-pink-200 ring-2 ring-pink-200 dark:ring-pink-700 shadow-sm font-medium',
-            hover: 'hover:bg-pink-50 dark:hover:bg-pink-950/50 hover:text-pink-700 dark:hover:text-pink-300 text-slate-600 dark:text-slate-400 active:bg-pink-100 dark:active:bg-pink-900/50'
+            hover: 'hover:bg-pink-50 dark:hover:bg-pink-950/50 hover:text-pink-700 dark:hover:text-pink-300 text-gray-600 dark:text-gray-400 active:bg-pink-100 dark:active:bg-pink-900/50'
         };
 
     return (
@@ -1072,7 +1072,7 @@ const UnifiedSegmentRenderer: React.FC<{
             border: isActive ? 'border-indigo-600 dark:border-indigo-500' : 'border-indigo-100 dark:border-indigo-800',
             text: isActive ? 'text-white' : 'text-indigo-900 dark:text-indigo-200',
             hover: !isActive ? 'hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300 dark:hover:border-indigo-700' : '',
-            original: isActive ? 'text-indigo-200 decoration-indigo-300' : 'text-slate-500 dark:text-slate-400 decoration-slate-400/50 dark:decoration-slate-500/50',
+            original: isActive ? 'text-indigo-200 decoration-indigo-300' : 'text-gray-500 dark:text-gray-400 decoration-gray-400/50 dark:decoration-gray-500/50',
             arrow: isActive ? 'text-indigo-300' : 'text-indigo-300 dark:text-indigo-400'
         }
         : {
@@ -1080,7 +1080,7 @@ const UnifiedSegmentRenderer: React.FC<{
             border: isActive ? 'border-green-600 dark:border-green-500' : 'border-green-100 dark:border-green-800',
             text: isActive ? 'text-white' : 'text-green-900 dark:text-green-200',
             hover: !isActive ? 'hover:bg-green-100 dark:hover:bg-green-900/50 hover:border-green-300 dark:hover:border-green-700' : '',
-            original: isActive ? 'text-green-200 decoration-green-300' : 'text-slate-500 dark:text-slate-400 decoration-slate-400/50 dark:decoration-slate-500/50',
+            original: isActive ? 'text-green-200 decoration-green-300' : 'text-gray-500 dark:text-gray-400 decoration-gray-400/50 dark:decoration-gray-500/50',
             arrow: isActive ? 'text-green-300' : 'text-green-300 dark:text-green-400'
         };
 
@@ -1118,22 +1118,22 @@ const GeneralFeedbackContent: React.FC<{ feedback: string; mode: WritingMode }> 
     const isIelts = mode.startsWith('ielts');
     return (
         <div className="space-y-4 md:space-y-6 animate-fade-in">
-            <div className="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm transition-colors">
+            <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-xl md:rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
                 <Quote className={`w-6 h-6 md:w-8 md:h-8 mb-2 md:mb-3 opacity-20 ${isIelts ? 'text-indigo-600 dark:text-indigo-400' : 'text-green-600 dark:text-green-400'}`} />
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base font-medium">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base font-medium">
                     {feedback}
                 </p>
             </div>
 
             <div className="space-y-2 md:space-y-3">
-                <h4 className="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">使用指南</h4>
-                <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-slate-600 dark:text-slate-400">
+                <h4 className="text-[10px] md:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">使用指南</h4>
+                <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-gray-600 dark:text-gray-400">
                     <li className="flex items-start gap-1.5 md:gap-2">
                         <div className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full mt-1.5 shrink-0 ${isIelts ? 'bg-indigo-400' : 'bg-green-400'}`}></div>
                         <span>点击文中的彩色区域，查看详细的修改建议和原因。</span>
                     </li>
                     <li className="flex items-start gap-1.5 md:gap-2">
-                        <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full mt-1.5 shrink-0 bg-slate-300 dark:bg-slate-600"></div>
+                        <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full mt-1.5 shrink-0 bg-gray-300 dark:bg-gray-600"></div>
                         <span>点击复制按钮可以一键复制修改后的全文。</span>
                     </li>
                 </ul>
@@ -1165,23 +1165,23 @@ const DetailContent: React.FC<{ segment: WritingSegment; mode: WritingMode }> = 
 
             {/* Original Bubble */}
             <div className="w-full flex flex-col items-start">
-                <span className="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 mb-1 md:mb-1.5 ml-1 uppercase tracking-wide">原文</span>
-                <div className={`relative w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 bg-white dark:bg-slate-800 text-center shadow-sm transition-colors ${themeColors.originalBorder} border-opacity-60`}>
-                    <p className="text-slate-500 dark:text-slate-400 line-through decoration-red-300 dark:decoration-red-500 decoration-2 font-serif text-base md:text-lg break-words">
+                <span className="text-[10px] md:text-xs font-bold text-gray-400 dark:text-gray-500 mb-1 md:mb-1.5 ml-1 uppercase tracking-wide">原文</span>
+                <div className={`relative w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 bg-white dark:bg-gray-800 text-center shadow-sm transition-colors ${themeColors.originalBorder} border-opacity-60`}>
+                    <p className="text-gray-500 dark:text-gray-400 line-through decoration-red-300 dark:decoration-red-500 decoration-2 font-serif text-base md:text-lg break-words">
                         {segment.original || <span className="italic opacity-30 text-sm">None</span>}
                     </p>
                 </div>
             </div>
 
             {/* Down Arrow */}
-            <div className="text-slate-300 dark:text-slate-600 animate-bounce-slow">
+            <div className="text-gray-300 dark:text-gray-600 animate-bounce-slow">
                 <ArrowDown className="w-5 h-5 md:w-6 md:h-6" />
             </div>
 
             {/* Revised Bubble */}
             <div className="w-full flex flex-col items-start">
                 <span className={`text-[10px] md:text-xs font-bold mb-1 md:mb-1.5 ml-1 uppercase tracking-wide ${themeColors.tagText}`}>修改后</span>
-                <div className={`w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 bg-white dark:bg-slate-800 text-center shadow-sm transition-colors ${themeColors.text} ${themeColors.border} bg-opacity-30`}>
+                <div className={`w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 bg-white dark:bg-gray-800 text-center shadow-sm transition-colors ${themeColors.text} ${themeColors.border} bg-opacity-30`}>
                     <p className="font-serif text-lg md:text-xl font-bold break-words">
                         {segment.text}
                     </p>
@@ -1196,13 +1196,13 @@ const DetailContent: React.FC<{ segment: WritingSegment; mode: WritingMode }> = 
             </div>
 
             {/* Reason Box */}
-            <div className="w-full bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden mt-1 md:mt-2 transition-colors">
-                <div className="bg-slate-100 dark:bg-slate-700 px-3 md:px-4 py-1.5 md:py-2 border-b border-slate-200 dark:border-slate-600 flex items-center gap-1.5 md:gap-2 transition-colors">
-                    <Info className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-[10px] md:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">修改原因</span>
+            <div className="w-full bg-gray-50 dark:bg-gray-800 rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mt-1 md:mt-2 transition-colors">
+                <div className="bg-gray-100 dark:bg-gray-700 px-3 md:px-4 py-1.5 md:py-2 border-b border-gray-200 dark:border-gray-600 flex items-center gap-1.5 md:gap-2 transition-colors">
+                    <Info className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">修改原因</span>
                 </div>
                 <div className="p-3 md:p-4">
-                    <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm leading-relaxed text-justify">
+                    <p className="text-gray-600 dark:text-gray-400 text-xs md:text-sm leading-relaxed text-justify">
                         {segment.reason || "AI 建议优化表达以更符合语境。"}
                     </p>
                 </div>
