@@ -1,5 +1,5 @@
 import request from "@/utils/request";
-import type { AnalysisResult, DictionaryResult, WritingResult, Message, WritingMode, QuickLookupResult } from "../types";
+import type { AnalysisResult, DictionaryResult, WritingResult, Message, WritingMode, QuickLookupResult, TranslateResult, RapidLookupResult } from "../types";
 
 // --- Public Services ---
 
@@ -32,4 +32,11 @@ export const getChatResponseService = async (
 
 export const quickLookupService = (word: string, context: string): Promise<QuickLookupResult> => {
   return request.post('/fastapi/quick-lookup', { word, context }) as Promise<QuickLookupResult>;
+};
+
+export const translateService = (text: string): Promise<TranslateResult> => {
+  return request.post('/fastapi/translate', { text }) as Promise<TranslateResult>;
+};
+export const rapidLookupService = (word: string, context: string): Promise<RapidLookupResult> => {
+  return request.post('/fastapi/rapid-lookup', { word, context }) as Promise<RapidLookupResult>;
 };

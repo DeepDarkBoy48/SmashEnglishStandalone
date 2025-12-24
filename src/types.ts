@@ -88,7 +88,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   data?: any;
-  type?: 'text' | 'analysis_result' | 'dictionary_result' | 'quick_lookup_result';
+  type?: 'text' | 'analysis_result' | 'dictionary_result' | 'quick_lookup_result' | 'video_control';
 }
 
 // --- Model Configuration ---
@@ -101,7 +101,16 @@ export type PageMode = 'writing' | 'reading';  // 写作纠错 | 文章精读
 export interface QuickLookupResult {
   word: string;
   contextMeaning: string;  // 在此上下文中的释义
+  partOfSpeech: string;    // 词性缩写
+  grammarRole: string;     // 语法角色
   explanation: string;     // 解释为什么是这个意思
+  originalSentence?: string; // 原句内容
+}
+
+// --- Rapid Lookup (Ultra Fast) ---
+export interface RapidLookupResult {
+  m: string; // meaning
+  p: string; // partOfSpeech
 }
 
 // --- Multi-thread AI Assistant ---
@@ -112,4 +121,9 @@ export interface Thread {
   context: string | null;
   contextType: 'sentence' | 'word' | 'writing';
   timestamp: number;
+}
+
+// --- Translation ---
+export interface TranslateResult {
+  translation: string;
 }

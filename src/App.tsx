@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Header } from './components/Header';
 import { InputArea } from './components/InputArea';
 import { ResultDisplay } from './components/ResultDisplay';
@@ -9,7 +8,7 @@ import { WritingPage } from './components/WritingPage';
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
 import { analyzeSentenceService, quickLookupService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread } from './types';
+import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread, Message } from './types';
 import { ThemeProvider } from './components/ThemeContext';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
@@ -44,6 +43,9 @@ const App: React.FC = () => {
   // Dictionary State
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
 
+  // Video Player Ref (for top-level control)
+  const playerRef = React.useRef<any>(null);
+
   // Writing State
   const [writingResult, setWritingResult] = useState<WritingResult | null>(null);
 
@@ -55,6 +57,63 @@ const App: React.FC = () => {
 
   // Helper to get active thread
   const activeThread = threads.find(t => t.id === activeThreadId) || null;
+
+  // Use a ref to track the latest activeThreadId for a stable closure in async calls
+  const activeThreadIdRef = useRef<string | null>(activeThreadId);
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
+
+  // Determine AI Assistant Context
+  let assistantContextContent: string | null = null;
+  let contextType: 'sentence' | 'word' | 'writing' = 'sentence';
+
+  if (activeTab === 'analyzer') {
+    assistantContextContent = analyzerResult?.englishSentence || null;
+    contextType = 'sentence';
+  } else if (activeTab === 'dictionary') {
+    assistantContextContent = dictionaryResult?.word || null;
+    contextType = 'word';
+  } else if (activeTab === 'writing') {
+    assistantContextContent = writingResult?.segments.map(s => s.text).join('') || null;
+    contextType = 'writing';
+  } else if (activeTab === 'youtube') {
+    // Youtube tab context is handled via the trigger functions, 
+    // but default to sentence for general chat
+    contextType = 'sentence';
+  }
+
+  // Unified messages handler for AI Assistant
+  const handleAssistantMessagesChange = useCallback((newMsgs: Message[]) => {
+    const currentId = activeThreadIdRef.current;
+    
+    if (currentId) {
+      // Update existing thread
+      setThreads(prev => prev.map(t => t.id === currentId ? { ...t, messages: newMsgs } : t));
+    } else {
+      // No active thread, create a new one
+      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Update ref immediately so the second call (AI response) sees the new ID
+      activeThreadIdRef.current = newId;
+      setActiveThreadId(newId);
+      
+      const newThread: Thread = {
+        id: newId,
+        title: newMsgs[0]?.content.slice(0, 20) || "新对话",
+        messages: newMsgs,
+        context: assistantContextContent,
+        contextType: contextType,
+        timestamp: Date.now()
+      };
+      setThreads(prev => [newThread, ...prev]);
+    }
+  }, [assistantContextContent, contextType]);
+
+  // Handle tab changes to "clear context" for the AI assistant
+  useEffect(() => {
+    setActiveThreadId(null);
+  }, [activeTab]);
 
   const [analysisCache, setAnalysisCache] = useState<Record<string, AnalysisResult>>({});
   const [quickLookupCache, setQuickLookupCache] = useState<Record<string, QuickLookupResult>>({});
@@ -78,13 +137,25 @@ const App: React.FC = () => {
   };
 
   // Trigger Analysis via AI Assistant
-  const handleTriggerAnalysis = async (text: string) => {
+  const handleTriggerAnalysis = async (text: string, wasPaused?: boolean) => {
     // 1. Create a new thread for this analysis
     const threadId = Date.now().toString();
+    const initialMessages: Message[] = [
+      { role: 'assistant', content: `正在为你分析句子：\n> "${text}"` }
+    ];
+
+    if (wasPaused) {
+      initialMessages.push({
+        role: 'assistant',
+        content: '视频已暂停，点击按钮继续播放',
+        type: 'video_control'
+      });
+    }
+
     const newThread: Thread = {
       id: threadId,
       title: `句法分析: ${text.slice(0, 20)}${text.length > 20 ? '...' : ''}`,
-      messages: [{ role: 'assistant', content: `正在为你分析句子：\n> "${text}"` }],
+      messages: initialMessages,
       context: text,
       contextType: 'sentence',
       timestamp: Date.now()
@@ -130,36 +201,62 @@ const App: React.FC = () => {
   };
 
   // Trigger Quick Lookup via AI Assistant (with context)
-  const handleTriggerDictionary = async (word: string, context: string) => {
+  const handleTriggerDictionary = async (word: string, context: string, wasPaused?: boolean) => {
     const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
     if (!cleanWord) return;
 
     const cacheKey = `${cleanWord}::${context}`;
 
-    // 1. Create a new thread
-    const threadId = Date.now().toString();
-    const newThread: Thread = {
-      id: threadId,
-      title: `单词查询: ${cleanWord}`,
-      messages: [{ role: 'assistant', content: `正在查询 **${cleanWord}** 在当前上下文中的含义...` }],
-      context: context,
-      contextType: 'word',
-      timestamp: Date.now()
-    };
+    // Find if there's an active thread of type 'word' that has less than 10 words
+    const currentThread = threads.find(t => t.id === activeThreadId);
+    // ... (rest of logic)
+    
+    let threadId: string;
+    
+    // Check if we should reuse thread
+    const existingWordThread = (currentThread?.contextType === 'word' && currentThread.id === activeThreadId) ? currentThread : null;
+    const lookupCount = existingWordThread?.messages.filter(m => m.type === 'quick_lookup_result').length || 0;
 
-    setThreads(prev => [newThread, ...prev]);
-    setActiveThreadId(threadId);
+    if (existingWordThread && lookupCount < 10) {
+      threadId = existingWordThread.id;
+      const newMessages: Message[] = [...existingWordThread.messages, { role: 'assistant', content: `正在查询 **${cleanWord}**...` }];
+      if (wasPaused) {
+        newMessages.push({ role: 'assistant', content: '视频已暂停', type: 'video_control' });
+      }
+      setThreads(prev => prev.map(t => t.id === threadId ? {
+        ...t,
+        messages: newMessages
+      } : t));
+    } else {
+      threadId = Date.now().toString();
+      const initialMessages: Message[] = [{ role: 'assistant', content: `正在查询 **${cleanWord}** 在当前上下文中的含义...` }];
+      if (wasPaused) {
+        initialMessages.push({ role: 'assistant', content: '视频已暂停', type: 'video_control' });
+      }
+      const newThread: Thread = {
+        id: threadId,
+        title: `单词查询: ${cleanWord}`,
+        messages: initialMessages,
+        context: context,
+        contextType: 'word',
+        timestamp: Date.now()
+      };
+      setThreads(prev => [newThread, ...prev]);
+      setActiveThreadId(threadId);
+    }
+    
     setAiIsOpen(true);
 
     // 2. Check Cache
     if (quickLookupCache[cacheKey]) {
+       const cachedResult = { ...quickLookupCache[cacheKey], originalSentence: context };
        setThreads(prev => prev.map(t => t.id === threadId ? {
          ...t,
-         messages: [{
+         messages: [...t.messages.filter(m => !m.content.includes(`正在查询 **${cleanWord}**`)), {
            role: 'assistant',
-           content: `已从缓存加载`,
+           content: `查词结果：`,
            type: 'quick_lookup_result',
-           data: quickLookupCache[cacheKey]
+           data: cachedResult
          }]
        } : t));
        return;
@@ -168,39 +265,26 @@ const App: React.FC = () => {
     // 3. Perform Quick Lookup
     try {
       const result = await quickLookupService(cleanWord, context);
+      const resultWithSentence = { ...result, originalSentence: context };
       setQuickLookupCache(prev => ({ ...prev, [cacheKey]: result }));
       setThreads(prev => prev.map(t => t.id === threadId ? {
         ...t,
-        messages: [{
+        messages: [...t.messages.filter(m => !m.content.includes(`正在查询 **${cleanWord}**`)), {
           role: 'assistant',
           content: `查词结果：`,
           type: 'quick_lookup_result',
-          data: result
+          data: resultWithSentence
         }]
       } : t));
     } catch (err: any) {
       setThreads(prev => prev.map(t => t.id === threadId ? {
         ...t,
-        messages: [{ role: 'assistant', content: `查词失败: ${err.message || '未知错误'}` }]
+        messages: [...t.messages, { role: 'assistant', content: `查词失败: ${err.message || '未知错误'}` }]
       } : t));
     }
   };
 
-  // Determine AI Assistant Context
-  let assistantContextContent: string | null = null;
-  let contextType: 'sentence' | 'word' | 'writing' = 'sentence';
-
-  if (activeTab === 'analyzer') {
-    assistantContextContent = analyzerResult?.englishSentence || null;
-    contextType = 'sentence';
-  } else if (activeTab === 'dictionary') {
-    assistantContextContent = dictionaryResult?.word || null;
-    contextType = 'word';
-  } else {
-    // Reconstruct the full text from segments for context
-    assistantContextContent = writingResult?.segments.map(s => s.text).join('') || null;
-    contextType = 'writing';
-  }
+  // Reconstruct context logic moved above
 
 
 
@@ -298,6 +382,8 @@ const App: React.FC = () => {
               <YoutubeStudyPage 
                 onTriggerAnalysis={handleTriggerAnalysis} 
                 onTriggerDictionary={handleTriggerDictionary}
+                isAiAssistantOpen={aiIsOpen}
+                playerRefExternal={playerRef}
               />
             )}
           </main>
@@ -311,11 +397,7 @@ const App: React.FC = () => {
                 isOpen={aiIsOpen}
                 onOpenChange={setAiIsOpen}
                 messages={activeThread?.messages || []}
-                onMessagesChange={(newMsgs) => {
-                  if (activeThreadId) {
-                    setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: newMsgs } : t));
-                  }
-                }}
+                onMessagesChange={handleAssistantMessagesChange}
                 isPinned={true}
                 onPinChange={setAiIsPinned}
                 threads={threads}
@@ -323,8 +405,11 @@ const App: React.FC = () => {
                 onSelectThread={setActiveThreadId}
                 onNewChat={() => {
                   setActiveThreadId(null);
-                  // Optionally create an empty thread or just leave it blank for user to type
                 }}
+                onResumeVideo={() => {
+                  if (playerRef.current) playerRef.current.playVideo();
+                }}
+                activeTab={activeTab}
               />
             </div>
           )}
@@ -338,17 +423,17 @@ const App: React.FC = () => {
             isOpen={aiIsOpen}
             onOpenChange={setAiIsOpen}
             messages={activeThread?.messages || []}
-            onMessagesChange={(newMsgs) => {
-              if (activeThreadId) {
-                setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: newMsgs } : t));
-              }
-            }}
+            onMessagesChange={handleAssistantMessagesChange}
             isPinned={false}
             onPinChange={setAiIsPinned}
             threads={threads}
             activeThreadId={activeThreadId}
             onSelectThread={setActiveThreadId}
             onNewChat={() => setActiveThreadId(null)}
+            onResumeVideo={() => {
+              if (playerRef.current) playerRef.current.playVideo();
+            }}
+            activeTab={activeTab}
           />
         )}
       </div>

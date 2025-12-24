@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Send, Bot, Sparkles, Loader2, Pin, PinOff, History, MessageSquare } from 'lucide-react';
+import { X, Send, Bot, Sparkles, Loader2, Pin, PinOff, History, MessageSquare, Play } from 'lucide-react';
 import type { Message, Thread } from '../types';
 import { getChatResponseService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
@@ -20,9 +20,13 @@ interface AiAssistantProps {
   activeThreadId: string | null;
   onSelectThread: (id: string) => void;
   onNewChat: () => void;
+  onResumeVideo?: () => void;
+  activeTab?: string;
 }
 
-const SUGGESTION_CHIP_CLASSES = "flex-shrink-0 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shadow-sm";
+const CHIP_BASE = "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all shadow-sm flex items-center gap-1.5";
+const CHIP_DEFAULT = `${CHIP_BASE} bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600`;
+const CHIP_PRIMARY = `${CHIP_BASE} bg-red-600 hover:bg-red-700 text-white border-transparent shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95`;
 
 export const AiAssistant: React.FC<AiAssistantProps> = ({ 
   currentContext, 
@@ -36,7 +40,9 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   threads,
   activeThreadId,
   onSelectThread,
-  onNewChat
+  onNewChat,
+  onResumeVideo,
+  activeTab
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -89,32 +95,41 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
 
   const cardClasses = isPinned
     ? 'w-full h-full flex flex-col overflow-hidden bg-white dark:bg-[#0d1117]'
-    : 'w-full h-full md:w-[400px] md:h-[80vh] md:max-h-[700px] md:mb-4 bg-white dark:bg-[#0d1117] md:rounded-2xl shadow-2xl shadow-gray-900/20 dark:shadow-gray-950/50 border border-pink-300 dark:border-pink-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 transition-colors';
+    : 'w-full h-full md:w-[500px] md:h-[80vh] md:max-h-[800px] md:mb-4 bg-white dark:bg-[#0d1117] md:rounded-2xl shadow-2xl shadow-gray-900/20 dark:shadow-gray-950/50 border border-pink-300 dark:border-pink-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 transition-colors';
 
   const renderSuggestions = () => {
-    if (contextType === 'sentence') {
-      return (
-        <>
-          <button onClick={() => handleSend("解释一下这个句子的语法结构")} className={SUGGESTION_CHIP_CLASSES}>✨ 解释语法结构</button>
-          <button onClick={() => handleSend("这句话里的重点单词有哪些？")} className={SUGGESTION_CHIP_CLASSES}>📖 重点单词</button>
-        </>
-      );
-    } else if (contextType === 'word') {
-      return (
-        <>
-          <button onClick={() => handleSend("帮我造几个不同的例句")} className={SUGGESTION_CHIP_CLASSES}>📝 生成更多例句</button>
-          <button onClick={() => handleSend("这个词有什么同义词？")} className={SUGGESTION_CHIP_CLASSES}>🔄 同义词辨析</button>
-        </>
-      );
-    } else {
-      return (
-        <>
-          <button onClick={() => handleSend("这篇文章的语气是否足够正式？")} className={SUGGESTION_CHIP_CLASSES}>👔 检查语气</button>
-          <button onClick={() => handleSend("有哪些表达可以更地道一些？")} className={SUGGESTION_CHIP_CLASSES}>🌟 优化地道表达</button>
-        </>
-      );
-    }
-  }
+    const hasVideoControl = messages.some(m => m.type === 'video_control');
+
+    return (
+      <>
+        {hasVideoControl && activeTab === 'youtube' && (
+          <button 
+            onClick={onResumeVideo} 
+            className={`${CHIP_PRIMARY} animate-in fade-in zoom-in duration-300`}
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span>继续播放视频</span>
+          </button>
+        )}
+        {contextType === 'sentence' ? (
+          <>
+            <button onClick={() => handleSend("解释一下这个句子的语法结构")} className={CHIP_DEFAULT}>✨ 解释语法结构</button>
+            <button onClick={() => handleSend("这句话里的重点单词有哪些？")} className={CHIP_DEFAULT}>📖 重点单词</button>
+          </>
+        ) : contextType === 'word' ? (
+          <>
+            <button onClick={() => handleSend("帮我造几个不同的例句")} className={CHIP_DEFAULT}>📝 生成更多例句</button>
+            <button onClick={() => handleSend("这个词有什么同义词？")} className={CHIP_DEFAULT}>🔄 同义词辨析</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => handleSend("这篇文章的语气是否足够正式？")} className={CHIP_DEFAULT}>👔 检查语气</button>
+            <button onClick={() => handleSend("有哪些表达可以更地道一些？")} className={CHIP_DEFAULT}>🌟 优化地道表达</button>
+          </>
+        )}
+      </>
+    );
+  };
 
   // 固定模式使用简洁的头部样式
   const renderPinnedHeader = () => (
@@ -189,12 +204,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     </div>
   );
 
-  // 点击遮罩层关闭弹窗
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isPinned) {
-      onOpenChange(false);
-    }
-  };
 
   return (
     <div className={containerClasses}>
@@ -209,13 +218,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
 
       {(isOpen || isPinned) && (
         <>
-          {/* 遮罩层 - 点击关闭 */}
-          {!isPinned && (
-            <div 
-              className="fixed inset-0 bg-black/20 md:bg-transparent" 
-              onClick={handleBackdropClick}
-            />
-          )}
           <div className={cardClasses}>
           {/* Header - 根据模式切换样式 */}
           {isPinned ? renderPinnedHeader() : renderFloatingHeader()}
@@ -250,7 +252,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
                        <p className="text-sm">暂无历史记录</p>
                     </div>
                   ) : (
-                    threads.map(thread => (
+                    threads.map((thread: Thread) => (
                       <button
                         key={thread.id}
                         onClick={() => {
@@ -309,7 +311,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
                     <div className="w-full">
                        <QuickLookupDisplay result={msg.data} isPinned={isPinned} />
                     </div>
-                  ) : (
+                  ) : msg.type === 'video_control' ? null : (
                     <div className={`rounded-xl px-3 py-2 text-sm leading-relaxed ${
                       msg.role === 'user' 
                         ? (isPinned ? 'bg-pink-500 text-white max-w-[85%]' : 'bg-pink-600 text-white rounded-br-sm max-w-[90%] md:max-w-[98%] shadow-sm')
@@ -422,9 +424,6 @@ const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean }> = ({ res
           {result.word}
         </span>
         <div className="flex gap-1.5">
-          <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs font-medium rounded-full">
-            上下文释义
-          </span>
           {result.grammarRole && (
             <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 text-xs font-medium rounded-full border border-indigo-200 dark:border-indigo-800/50">
               {result.grammarRole}
@@ -432,6 +431,38 @@ const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean }> = ({ res
           )}
         </div>
       </div>
+
+      {/* 原句展示 */}
+      {result.originalSentence && (
+        <div className="mb-4 p-4 bg-white dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700/50 relative overflow-hidden group shadow-sm">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-pink-500 opacity-80" />
+          <p className="text-xl text-gray-900 dark:text-white leading-relaxed font-bold pr-2">
+            {(() => {
+              const text = result.originalSentence;
+              const word = result.word;
+              if (!word) return `"${text}"`;
+              
+              // Use regex to case-insensitively find the word
+              const parts = text.split(new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+              return (
+                <>
+                  "
+                  {parts.map((part: string, i: number) => 
+                    part.toLowerCase() === word.toLowerCase() ? (
+                      <span key={i} className="bg-yellow-200 dark:bg-yellow-900/50 px-1 rounded text-gray-900 dark:text-white">
+                        {part}
+                      </span>
+                    ) : (
+                      part
+                    )
+                  )}
+                  "
+                </>
+              );
+            })()}
+          </p>
+        </div>
+      )}
       
       {/* 释义与词性 */}
       <div className={`${isPinned ? 'mb-3' : 'mb-4'}`}>

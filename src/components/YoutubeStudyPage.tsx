@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Youtube, Upload, Play, Sparkles, FileUp, RefreshCw } from 'lucide-react';
+import { Youtube, Upload, Play, Sparkles, FileUp, RefreshCw, Languages, Settings2, Loader2 } from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { parseSRT, optimizeSubtitles } from '../utils/srtParser';
 import type { SubtitleItem } from '../utils/srtParser';
+import { translateService, rapidLookupService } from '../services/geminiService';
 
 // Extend Window interface for YouTube API
 declare global {
@@ -13,19 +14,24 @@ declare global {
 }
 
 interface YoutubeStudyPageProps {
-  onTriggerAnalysis?: (text: string) => void;
-  onTriggerDictionary?: (word: string, context: string) => void;
+  onTriggerAnalysis?: (text: string, wasPaused?: boolean) => void;
+  onTriggerDictionary?: (word: string, context: string, wasPaused?: boolean) => void;
+  isAiAssistantOpen?: boolean;
+  playerRefExternal?: React.MutableRefObject<any>;
 }
 
 export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({ 
   onTriggerAnalysis,
-  onTriggerDictionary 
+  onTriggerDictionary,
+  isAiAssistantOpen,
+  playerRefExternal
 }) => {
   // --- State ---
   // Column 1: Video
   const [videoUrl, setVideoUrl] = useState('');
   const [videoId, setVideoId] = useState<string | null>(null);
-  const playerRef = useRef<any>(null);
+  const playerRefInternal = useRef<any>(null);
+  const playerRef = playerRefExternal || playerRefInternal;
   const subtitleContainerRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -38,6 +44,26 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isWordSearchEnabled, setIsWordSearchEnabled] = useState(false);
   const [isBigTextMode, setIsBigTextMode] = useState(false);
+  const [isPauseOnClickEnabled, setIsPauseOnClickEnabled] = useState(false);
+  const [isFastLookupEnabled, setIsFastLookupEnabled] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [translations, setTranslations] = useState<Record<number, string>>({});
+  const [translatingIds, setTranslatingIds] = useState<Set<number>>(new Set());
+  const [fastLookupResults, setFastLookupResults] = useState<Record<string, any>>({});
+  const [fastLookupLoading, setFastLookupLoading] = useState<Record<string, boolean>>({});
+
+  const toolsRef = useRef<HTMLDivElement>(null);
+
+  // Close tools dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
+        setIsToolsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // --- Effects ---
 
@@ -162,6 +188,17 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     return () => clearInterval(interval);
   }, [isPlayerReady, subtitles, activeSubtitleId]);
 
+  // Handle auto-resume when assistant closes in popup mode
+  useEffect(() => {
+    if (!isAiAssistantOpen && isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
+      // In a real app, we might want more complex logic here to only resume if WE paused it
+      // but for simplicity:
+      if (playerRef.current.getPlayerState?.() === window.YT.PlayerState.PAUSED) {
+        playerRef.current.playVideo();
+      }
+    }
+  }, [isAiAssistantOpen, isPauseOnClickEnabled, isPlayerReady]);
+
   // Scroll to active subtitle
   useEffect(() => {
     if (activeSubtitleId && virtuosoRef.current && subtitles.length > 0) {
@@ -175,6 +212,37 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       }
     }
   }, [activeSubtitleId, subtitles]);
+
+  // Keyboard shortcuts for video control
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Skip if typing in an input or textarea
+      const activeElement = document.activeElement;
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        (activeElement as HTMLElement).isContentEditable
+      );
+      
+      if (isTyping) return;
+
+      if (event.code === 'Space') {
+        if (playerRef.current && isPlayerReady && typeof playerRef.current.getPlayerState === 'function') {
+          event.preventDefault();
+          const state = playerRef.current.getPlayerState();
+          // YT.PlayerState.PLAYING is 1, YT.PlayerState.PAUSED is 2
+          if (state === 1) { 
+            playerRef.current.pauseVideo();
+          } else {
+            playerRef.current.playVideo();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlayerReady, playerRef]);
 
 
   // --- Handlers ---
@@ -219,46 +287,109 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   };
 
   const handleAnalyze = async (sub: SubtitleItem) => {
+    let wasPaused = false;
+    if (isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
+      playerRef.current.pauseVideo();
+      wasPaused = true;
+    }
     if (onTriggerAnalysis) {
       const cleanText = sub.text.replace(/\n/g, ' ');
-      onTriggerAnalysis(cleanText);
+      onTriggerAnalysis(cleanText, wasPaused);
     }
   };
 
-  const handleWordClick = (word: string, context: string, e: React.MouseEvent) => {
-    if (!isWordSearchEnabled) return;
+  const handleTranslate = async (sub: SubtitleItem) => {
+    if (translatingIds.has(sub.id) || translations[sub.id]) return;
+    
+    // Pause video when translating only if enabled
+    if (isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
+      playerRef.current.pauseVideo();
+    }
+    
+    setTranslatingIds(prev => new Set(prev).add(sub.id));
+    try {
+      const result = await translateService(sub.text);
+      setTranslations(prev => ({
+        ...prev,
+        [sub.id]: result.translation
+      }));
+    } catch (error) {
+      console.error('Translation failed:', error);
+    } finally {
+      setTranslatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(sub.id);
+        return next;
+      });
+    }
+  };
+
+  const handleWordClick = async (word: string, context: string, e: React.MouseEvent) => {
+    if (!isWordSearchEnabled && !isFastLookupEnabled) return;
     e.stopPropagation();
     
-    // Copy word to clipboard
-    navigator.clipboard.writeText(word).catch(err => {
-      console.error('Failed to copy word:', err);
-    });
-    
-    if (onTriggerDictionary) {
-      onTriggerDictionary(word, context);
+    let wasPaused = false;
+    if (isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
+      playerRef.current.pauseVideo();
+      wasPaused = true;
+    }
+
+    if (isFastLookupEnabled) {
+      const cacheKey = `${word}-${context}`;
+      if (fastLookupResults[cacheKey]) return;
+
+      setFastLookupLoading(prev => ({ ...prev, [cacheKey]: true }));
+      try {
+        const result = await rapidLookupService(word, context);
+        setFastLookupResults(prev => ({ ...prev, [cacheKey]: result }));
+      } catch (error) {
+        console.error('Fast lookup failed:', error);
+      } finally {
+        setFastLookupLoading(prev => ({ ...prev, [cacheKey]: false }));
+      }
+    } else {
+      // Copy word to clipboard
+      navigator.clipboard.writeText(word).catch(err => {
+        console.error('Failed to copy word:', err);
+      });
+      
+      if (onTriggerDictionary) {
+        onTriggerDictionary(word, context, wasPaused);
+      }
     }
   };
 
   const renderSubtitleText = (text: string, context: string) => {
-    if (!isWordSearchEnabled) return text;
+    if (!isWordSearchEnabled && !isFastLookupEnabled) return text;
 
     // Split by words but keep punctuation as separate or attached
-    // This is a simple split, could be improved with regex
     const words = text.split(/(\s+)/);
     return words.map((part, idx) => {
       if (/\s+/.test(part)) return part;
-      // Extract the word part and punctuation part
       const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
       if (match) {
         const [_, word, punct] = match;
+        const cacheKey = `${word}-${context}`;
+        const result = fastLookupResults[cacheKey];
+        const isLoading = fastLookupLoading[cacheKey];
+
         return (
           <React.Fragment key={idx}>
             <span 
-              className="hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-colors text-gray-900 dark:text-gray-100 font-medium underline decoration-dotted decoration-gray-400 dark:decoration-gray-600 underline-offset-4 active:bg-yellow-300 dark:active:bg-yellow-800"
+              className={`hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-all text-gray-900 dark:text-gray-100 font-medium ${isFastLookupEnabled ? 'border-b border-dashed border-gray-400 dark:border-gray-600' : 'underline decoration-dotted decoration-gray-400 dark:decoration-gray-600 underline-offset-4'} active:bg-yellow-300 dark:active:bg-yellow-800`}
               onClick={(e) => handleWordClick(word, context, e)}
             >
               {word}
             </span>
+            {result && (
+              <span className="mx-1.5 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-sm rounded-md font-bold animate-fade-in inline-flex items-center gap-1.5 shadow-sm border border-indigo-100 dark:border-indigo-800/50 align-baseline translate-y-[-1px]">
+                <span className="opacity-70 text-xs font-mono">{result.p}</span>
+                <span>{result.m}</span>
+              </span>
+            )}
+            {isLoading && (
+              <Loader2 className="inline w-3 h-3 animate-spin text-gray-400 ml-1" />
+            )}
             {punct}
           </React.Fragment>
         );
@@ -361,30 +492,53 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
              <h2 className="font-semibold text-gray-800 dark:text-white">字幕内容</h2>
            </div>
             <div className="flex items-center gap-3">
-               <div className="flex items-center gap-2 mr-2">
-                 <label className="relative inline-flex items-center cursor-pointer">
-                   <input 
-                     type="checkbox" 
-                     className="sr-only peer" 
-                     checked={isWordSearchEnabled}
-                     onChange={() => setIsWordSearchEnabled(!isWordSearchEnabled)}
-                   />
-                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:trangray-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                   <span className="ml-2 text-xs font-medium text-gray-500 dark:text-gray-400 select-none">查词模式</span>
-                 </label>
-               </div>
-               <div className="flex items-center gap-2 mr-2">
-                 <label className="relative inline-flex items-center cursor-pointer">
-                   <input 
-                     type="checkbox" 
-                     className="sr-only peer" 
-                     checked={isBigTextMode}
-                     onChange={() => setIsBigTextMode(!isBigTextMode)}
-                   />
-                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-                   <span className="ml-2 text-xs font-medium text-gray-500 dark:text-gray-400 select-none">大字模式</span>
-                 </label>
-               </div>
+                <div className="relative" ref={toolsRef}>
+                  <button 
+                    onClick={() => setIsToolsOpen(!isToolsOpen)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isToolsOpen ? 'bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600' : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-800'} hover:border-gray-400 dark:hover:border-gray-500`}
+                  >
+                    <Settings2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tools</span>
+                  </button>
+
+                  {isToolsOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 p-2 py-3 flex flex-col gap-1">
+                      {/* Search Mode */}
+                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsWordSearchEnabled(!isWordSearchEnabled)}>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">查词模式</span>
+                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isWordSearchEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isWordSearchEnabled ? 'translate-x-5' : ''}`} />
+                        </div>
+                      </div>
+
+                      {/* Fast Lookup Mode */}
+                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsFastLookupEnabled(!isFastLookupEnabled)}>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">极速查词</span>
+                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isFastLookupEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isFastLookupEnabled ? 'translate-x-5' : ''}`} />
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+
+                      {/* Click Pause */}
+                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsPauseOnClickEnabled(!isPauseOnClickEnabled)}>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">点击暂停</span>
+                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isPauseOnClickEnabled ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isPauseOnClickEnabled ? 'translate-x-5' : ''}`} />
+                        </div>
+                      </div>
+
+                      {/* Big Text Mode */}
+                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsBigTextMode(!isBigTextMode)}>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">大字模式</span>
+                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isBigTextMode ? 'bg-purple-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isBigTextMode ? 'translate-x-5' : ''}`} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                {!subtitles.length && (
                 <label className="cursor-pointer px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-300 transition-colors">
                   导入 .srt
@@ -452,7 +606,26 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                                 <Sparkles className="w-4 h-4" />
                                 <span>句法分析</span>
                              </button>
+                             <button 
+                               onClick={() => handleTranslate(activeSub)}
+                               className={`px-6 py-2.5 rounded-full font-medium transition-colors flex items-center gap-2 
+                                 ${translations[activeSub.id] 
+                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
+                                   : 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'} 
+                                 ${translatingIds.has(activeSub.id) ? 'animate-pulse opacity-70' : ''}`}
+                               disabled={translatingIds.has(activeSub.id) || !!translations[activeSub.id]}
+                             >
+                                <Languages className="w-4 h-4" />
+                                <span>{translatingIds.has(activeSub.id) ? '翻译中...' : translations[activeSub.id] ? '已翻译' : '极速翻译'}</span>
+                             </button>
                            </div>
+                           {translations[activeSub.id] && (
+                             <div className="mt-8 p-6 bg-gray-50/80 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 animate-fade-in">
+                               <p className="text-2xl md:text-3xl text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+                                 {translations[activeSub.id]}
+                               </p>
+                             </div>
+                           )}
                         </div>
                       );
                    })()
@@ -479,7 +652,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                         e.stopPropagation();
                         handleJumpToTime(sub.startTime);
                       }}
-                      className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-all group-hover:shadow-sm border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+                      className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-all group-hover:shadow-sm border border-transparent hover:border-blue-200 dark:hover:border-blue-800 h-fit"
                       title="点击跳转播放"
                     >
                       <Play className="w-4 h-4 fill-current" />
@@ -487,18 +660,43 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                         {new Date(sub.startTime * 1000).toISOString().substr(14, 5)}
                       </span>
                     </button>
-                    <p className="text-base text-gray-700 dark:text-gray-200 leading-relaxed flex-1 pt-1.5 select-text">
-                      {renderSubtitleText(sub.text, sub.text)}
-                    </p>
+                    
+                    <div className="flex-1 flex flex-col gap-2 min-w-0 pr-10">
+                      <p className="text-base text-gray-700 dark:text-gray-200 leading-relaxed pt-1.5 select-text">
+                        {renderSubtitleText(sub.text, sub.text)}
+                      </p>
+                      
+                      {translations[sub.id] && (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 animate-fade-in">
+                          <p className="text-sm text-gray-900 dark:text-gray-200 font-medium">
+                            {translations[sub.id]}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleAnalyze(sub); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-2 bg-white dark:bg-gray-700 shadow-sm rounded-full text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-gray-600 transition-all z-10"
-                    title="句法分析"
-                  >
-                     <Sparkles className="w-4 h-4" />
-                  </button>
+
+                  <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 py-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleAnalyze(sub); }}
+                      className="p-2 bg-white dark:bg-gray-700 shadow-lg rounded-full text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-gray-600 transition-all border border-gray-100 dark:border-gray-600"
+                      title="句法分析"
+                    >
+                       <Sparkles className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleTranslate(sub); }}
+                      className={`p-2 shadow-lg rounded-full transition-all border 
+                        ${translations[sub.id]
+                          ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700'
+                          : 'bg-white text-blue-500 hover:text-blue-600 hover:bg-blue-50 border-gray-100 dark:bg-gray-700 dark:text-blue-400 dark:hover:bg-gray-600 dark:border-gray-600'}
+                        ${translatingIds.has(sub.id) ? 'animate-spin' : ''}`}
+                      title={translations[sub.id] ? "已翻译" : "极速翻译"}
+                      disabled={translatingIds.has(sub.id) || !!translations[sub.id]}
+                    >
+                       <Languages className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             />
