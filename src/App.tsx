@@ -9,7 +9,7 @@ import { WritingPage } from './components/WritingPage';
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
 import { analyzeSentenceService, quickLookupService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult, Message, QuickLookupResult, Thread } from './types';
+import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread } from './types';
 import { ThemeProvider } from './components/ThemeContext';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
