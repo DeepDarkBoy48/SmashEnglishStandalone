@@ -188,6 +188,16 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     }
   };
 
+  const handleResetSubtitles = () => {
+    if (window.confirm('确定要清空当前字幕吗？这将允许您上传新的字幕文件。')) {
+      setSrtContent('');
+      setSubtitles([]);
+      localStorage.removeItem('smash_english_srt_content');
+      // Clear file input value if possible, though ref is local to render. 
+      // It will be reset on click anyway.
+    }
+  };
+
   // Sync active subtitle with video time (Optional polling)
   useEffect(() => {
     let interval: any;
@@ -446,6 +456,31 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   };
 
   // --- Drag and Drop Handlers ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.endsWith('.srt')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          setSrtContent(content);
+          const parsed = parseSRT(content);
+          setSubtitles(optimizeSubtitles(parsed));
+        };
+        reader.readAsText(file);
+      } else {
+        alert('请上传 .srt 格式的字幕文件');
+      }
+    }
+    // Reset input value so the same file can be selected again if needed
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -486,7 +521,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       {/* Column 1: Video Player */}
       <div className={`flex-none lg:landscape:flex-[1.8] bg-white dark:bg-[#0d1117] ${isImmersive ? '' : 'lg:rounded-2xl shadow-sm lg:border'} border-b border-gray-200 dark:border-gray-800/60 flex flex-col transition-all duration-300 relative group`}>
         {/* Floating Integrated Controls */}
-        <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-2 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]">
           <div className="relative" ref={toolsRef}>
             <button 
               onClick={() => setIsToolsOpen(!isToolsOpen)}
@@ -510,6 +545,23 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                     >
                       <RefreshCw className="w-4 h-4 text-red-600 dark:text-red-400" />
                       <span className="text-sm font-medium text-red-600 dark:text-red-400">更换视频</span>
+                    </button>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+                  </>
+                )}
+
+                {/* Re-upload SRT */}
+                {subtitles.length > 0 && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        handleResetSubtitles();
+                      }}
+                      className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
+                    >
+                      <FileUp className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">重传字幕</span>
                     </button>
                     <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
                   </>
@@ -673,10 +725,20 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
           {!subtitles.length ? (
             <div className="h-full flex flex-col p-4 items-center justify-center overflow-y-auto">
               <div className="w-full max-sm text-center">
-                <div className="mb-6 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-800/50">
-                  <FileUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">拖拽 .srt 文件到此处</p>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs">或点击右上角按钮选择文件</p>
+                <div 
+                  className="mb-6 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-all rounded-xl bg-gray-50/50 dark:bg-gray-800/50 group"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept=".srt"
+                    className="hidden"
+                  />
+                  <FileUp className="w-12 h-12 text-gray-400 group-hover:text-blue-500 mx-auto mb-3 transition-colors" />
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">拖拽 .srt 文件到此处</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs group-hover:text-blue-400/70 dark:group-hover:text-blue-400/70 transition-colors">或点击此处选择文件上传</p>
                 </div>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -799,6 +861,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
           ) : (
             <Virtuoso
               style={{ height: '100%' }}
+              className="pb-[env(safe-area-inset-bottom)]"
               data={subtitles}
               ref={virtuosoRef}
               itemContent={(_index, sub) => (
