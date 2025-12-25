@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Youtube, Upload, Play, Sparkles, FileUp, RefreshCw, Languages, Settings2, Loader2 } from 'lucide-react';
+import { Play, Sparkles, FileUp, RefreshCw, Languages, Settings2, Loader2 } from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { parseSRT, optimizeSubtitles } from '../utils/srtParser';
 import type { SubtitleItem } from '../utils/srtParser';
-import { translateService, rapidLookupService } from '../services/geminiService';
+import { translateService, rapidLookupService, analyzeSentenceService, quickLookupService } from '../services/geminiService';
+import type { AnalysisResult, QuickLookupResult } from '../types';
+import { ResultDisplay } from './ResultDisplay';
+import { QuickLookupDisplay } from './AiSharedComponents';
 
 // Extend Window interface for YouTube API
 declare global {
@@ -17,14 +20,20 @@ interface YoutubeStudyPageProps {
   onTriggerAnalysis?: (text: string, wasPaused?: boolean) => void;
   onTriggerDictionary?: (word: string, context: string, wasPaused?: boolean) => void;
   isAiAssistantOpen?: boolean;
+  onToggleAi?: (open: boolean) => void;
   playerRefExternal?: React.MutableRefObject<any>;
+  isImmersive?: boolean;
+  onImmersiveChange?: (immersive: boolean) => void;
 }
 
 export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({ 
   onTriggerAnalysis,
   onTriggerDictionary,
   isAiAssistantOpen,
-  playerRefExternal
+  onToggleAi,
+  playerRefExternal,
+  isImmersive,
+  onImmersiveChange
 }) => {
   // --- State ---
   // Column 1: Video
@@ -51,6 +60,14 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const [translatingIds, setTranslatingIds] = useState<Set<number>>(new Set());
   const [fastLookupResults, setFastLookupResults] = useState<Record<string, any>>({});
   const [fastLookupLoading, setFastLookupLoading] = useState<Record<string, boolean>>({});
+
+  // Big Text Mode AI Results
+  const [bigTextAnalysisResults, setBigTextAnalysisResults] = useState<Record<number, AnalysisResult>>({});
+  const [bigTextDictionaryResults, setBigTextDictionaryResults] = useState<Record<string, QuickLookupResult>>({});
+  const [isBigTextAnalyzing, setIsBigTextAnalyzing] = useState<Record<number, boolean>>({});
+  const [isBigTextLookupLoading, setIsBigTextLookupLoading] = useState<Record<string, boolean>>({});
+  const [bigTextResultOrder, setBigTextResultOrder] = useState<{type: 'analysis' | 'dictionary', key: string | number}[]>([]);
+  const [isInlineAiEnabled, setIsInlineAiEnabled] = useState(true);
 
   const toolsRef = useRef<HTMLDivElement>(null);
 
@@ -258,19 +275,6 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     }
   };
 
-  const handleSrtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        setSrtContent(content);
-        const parsed = parseSRT(content);
-        setSubtitles(optimizeSubtitles(parsed));
-      };
-      reader.readAsText(file);
-    }
-  };
 
   const handleSrtPaste = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const content = e.target.value;
@@ -292,9 +296,29 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       playerRef.current.pauseVideo();
       wasPaused = true;
     }
-    if (onTriggerAnalysis) {
+
+    // If Inline AI is DISABLED or AI Assistant is already OPEN, send to sidebar.
+    if ((!isInlineAiEnabled || isAiAssistantOpen) && onTriggerAnalysis) {
       const cleanText = sub.text.replace(/\n/g, ' ');
       onTriggerAnalysis(cleanText, wasPaused);
+      return;
+    }
+
+    // Always use local analysis for a better inline experience (when AI assistant is closed)
+    if (bigTextAnalysisResults[sub.id]) return;
+    setIsBigTextAnalyzing(prev => ({ ...prev, [sub.id]: true }));
+    try {
+      const cleanText = sub.text.replace(/\n/g, ' ');
+      const result = await analyzeSentenceService(cleanText);
+      setBigTextAnalysisResults(prev => ({ ...prev, [sub.id]: result }));
+      setBigTextResultOrder(prev => [
+        { type: 'analysis', key: sub.id },
+        ...prev.filter(i => !(i.type === 'analysis' && i.key === sub.id))
+      ]);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setIsBigTextAnalyzing(prev => ({ ...prev, [sub.id]: false }));
     }
   };
 
@@ -334,6 +358,38 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       wasPaused = true;
     }
 
+    const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
+    if (!cleanWord) return;
+
+    // If Inline AI is DISABLED or AI Assistant is already OPEN, send word lookup to sidebar.
+    if ((!isInlineAiEnabled || isAiAssistantOpen) && isWordSearchEnabled && !isFastLookupEnabled && onTriggerDictionary) {
+      onTriggerDictionary(cleanWord, context, wasPaused);
+      return;
+    }
+
+    if (isWordSearchEnabled && !isFastLookupEnabled) {
+      const cacheKey = `${cleanWord}-${context}`;
+      if (bigTextDictionaryResults[cacheKey]) return;
+
+      setIsBigTextLookupLoading(prev => ({ ...prev, [cacheKey]: true }));
+      try {
+        const result = await quickLookupService(cleanWord, context);
+        setBigTextDictionaryResults(prev => ({ 
+          ...prev, 
+          [cacheKey]: { ...result, originalSentence: context } 
+        }));
+        setBigTextResultOrder(prev => [
+          { type: 'dictionary', key: cacheKey },
+          ...prev.filter(i => !(i.type === 'dictionary' && i.key === cacheKey))
+        ]);
+      } catch (error) {
+        console.error('Dictionary lookup failed:', error);
+      } finally {
+        setIsBigTextLookupLoading(prev => ({ ...prev, [cacheKey]: false }));
+      }
+      return;
+    }
+
     if (isFastLookupEnabled) {
       const cacheKey = `${word}-${context}`;
       if (fastLookupResults[cacheKey]) return;
@@ -346,15 +402,6 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
         console.error('Fast lookup failed:', error);
       } finally {
         setFastLookupLoading(prev => ({ ...prev, [cacheKey]: false }));
-      }
-    } else {
-      // Copy word to clipboard
-      navigator.clipboard.writeText(word).catch(err => {
-        console.error('Failed to copy word:', err);
-      });
-      
-      if (onTriggerDictionary) {
-        onTriggerDictionary(word, context, wasPaused);
       }
     }
   };
@@ -435,125 +482,192 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
+    <div className={`flex-1 flex flex-col lg:landscape:flex-row ${isImmersive ? 'gap-0' : 'gap-3 lg:landscape:gap-4'} overflow-hidden min-h-0`}>
       {/* Column 1: Video Player */}
-      <div className="flex-[2] bg-white dark:bg-[#0d1117] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800/60 flex flex-col overflow-hidden transition-all duration-300">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between">
-           <div className="flex items-center gap-2">
-             <Youtube className="w-5 h-5 text-red-600" />
-             <h2 className="font-semibold text-gray-800 dark:text-white">视频播放</h2>
-           </div>
-           {videoId && (
-             <button 
-               onClick={handleResetVideo}
-               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-             >
-               <RefreshCw className="w-3.5 h-3.5" />
-               更换视频
-             </button>
-           )}
+      <div className={`flex-none lg:landscape:flex-[1.8] bg-white dark:bg-[#0d1117] ${isImmersive ? '' : 'lg:rounded-2xl shadow-sm lg:border'} border-b border-gray-200 dark:border-gray-800/60 flex flex-col transition-all duration-300 relative group`}>
+        {/* Floating Integrated Controls */}
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
+          <div className="relative" ref={toolsRef}>
+            <button 
+              onClick={() => setIsToolsOpen(!isToolsOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-xs lg:text-sm font-semibold backdrop-blur-md shadow-lg active:scale-95 ${isToolsOpen ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600' : 'bg-black/40 dark:bg-black/60 text-white/90 border-white/10 hover:bg-black/70'}`}
+            >
+              <Settings2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span>设置</span>
+            </button>
+
+            {isToolsOpen && (
+              <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 p-1.5 sm:p-2 py-2 sm:py-3 flex flex-col gap-0.5 sm:gap-1 animate-in fade-in slide-in-from-top-2">
+                {/* 更换视频 */}
+                {videoId && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        handleResetVideo();
+                      }}
+                      className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
+                    >
+                      <RefreshCw className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      <span className="text-sm font-medium text-red-600 dark:text-red-400">更换视频</span>
+                    </button>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+                  </>
+                )}
+                
+                {/* Search Mode */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => {
+                  if (!isWordSearchEnabled) {
+                    setIsFastLookupEnabled(false);
+                  }
+                  setIsWordSearchEnabled(!isWordSearchEnabled);
+                }}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">查词模式</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isWordSearchEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isWordSearchEnabled ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                {/* Fast Lookup Mode */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => {
+                  if (!isFastLookupEnabled) {
+                    setIsWordSearchEnabled(false);
+                  }
+                  setIsFastLookupEnabled(!isFastLookupEnabled);
+                }}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">极速查词</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isFastLookupEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isFastLookupEnabled ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+
+                {/* Click Pause */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsPauseOnClickEnabled(!isPauseOnClickEnabled)}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">点击暂停</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isPauseOnClickEnabled ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isPauseOnClickEnabled ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                {/* Big Text Mode */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsBigTextMode(!isBigTextMode)}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">大字模式</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isBigTextMode ? 'bg-purple-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isBigTextMode ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                {/* Inline AI Cards Toggle */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsInlineAiEnabled(!isInlineAiEnabled)}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">内联 AI 卡片</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isInlineAiEnabled ? 'bg-pink-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isInlineAiEnabled ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+
+                {/* Immersive Mode */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => onImmersiveChange?.(!isImmersive)}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">沉浸模式</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isImmersive ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isImmersive ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
-        <div className="flex-1 bg-black relative">
+        <div className="bg-black relative aspect-video lg:landscape:flex-1">
           {!videoId ? (
-             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-100 dark:bg-[#0d1117]">
+             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 lg:p-6 text-center bg-gray-100 dark:bg-[#0d1117]">
                 <div className="w-full max-w-md">
                    <form onSubmit={handleVideoUrlSubmit} className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="输入 YouTube 视频地址..."
-                        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="输入 YouTube URL..."
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
                       />
-                      <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
+                      <button type="submit" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors">
                         加载
                       </button>
                    </form>
-                   <p className="mt-4 text-sm text-gray-500">示例: https://www.youtube.com/watch?v=...</p>
+                   <p className="mt-2 lg:mt-4 text-[10px] lg:text-sm text-gray-500">示例: https://www.youtube.com/watch?v=...</p>
                 </div>
              </div>
           ) : (
-            <div id="youtube-player" className="w-full h-full"></div>
+            <div id="youtube-player" className="absolute inset-0 w-full h-full"></div>
           )}
         </div>
       </div>
 
       {/* Column 2: Subtitles */}
       <div 
-        className={`flex-1 bg-white dark:bg-[#0d1117] rounded-2xl shadow-sm border-2 flex flex-col overflow-hidden transition-all ${isDragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-800/60'}`}
+        className={`flex-1 bg-white dark:bg-[#0d1117] ${isImmersive ? '' : 'lg:rounded-2xl shadow-sm lg:border-2'} flex flex-col overflow-hidden transition-all min-h-0 relative group ${isDragging ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-transparent lg:border-gray-200 dark:lg:border-gray-800/60'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="p-4 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between">
-           <div className="flex items-center gap-2">
-             <Upload className="w-5 h-5 text-blue-500" />
-             <h2 className="font-semibold text-gray-800 dark:text-white">字幕内容</h2>
-           </div>
-            <div className="flex items-center gap-3">
-                <div className="relative" ref={toolsRef}>
-                  <button 
-                    onClick={() => setIsToolsOpen(!isToolsOpen)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isToolsOpen ? 'bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600' : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-800'} hover:border-gray-400 dark:hover:border-gray-500`}
-                  >
-                    <Settings2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tools</span>
-                  </button>
-
-                  {isToolsOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 p-2 py-3 flex flex-col gap-1">
-                      {/* Search Mode */}
-                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsWordSearchEnabled(!isWordSearchEnabled)}>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">查词模式</span>
-                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isWordSearchEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isWordSearchEnabled ? 'translate-x-5' : ''}`} />
-                        </div>
-                      </div>
-
-                      {/* Fast Lookup Mode */}
-                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsFastLookupEnabled(!isFastLookupEnabled)}>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">极速查词</span>
-                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isFastLookupEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isFastLookupEnabled ? 'translate-x-5' : ''}`} />
-                        </div>
-                      </div>
-
-                      <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
-
-                      {/* Click Pause */}
-                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsPauseOnClickEnabled(!isPauseOnClickEnabled)}>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">点击暂停</span>
-                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isPauseOnClickEnabled ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isPauseOnClickEnabled ? 'translate-x-5' : ''}`} />
-                        </div>
-                      </div>
-
-                      {/* Big Text Mode */}
-                      <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsBigTextMode(!isBigTextMode)}>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">大字模式</span>
-                        <div className={`w-10 h-5 rounded-full transition-colors relative ${isBigTextMode ? 'bg-purple-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isBigTextMode ? 'translate-x-5' : ''}`} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-               {!subtitles.length && (
-                <label className="cursor-pointer px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-300 transition-colors">
-                  导入 .srt
-                  <input type="file" accept=".srt" className="hidden" onChange={handleSrtUpload} />
-                </label>
-               )}
-            </div>
-        </div>
-
         <div className="flex-1 overflow-hidden relative" ref={subtitleContainerRef}>
           {isDragging && (
             <div className="absolute inset-0 bg-blue-100/80 dark:bg-blue-900/80 flex flex-col items-center justify-center z-20 pointer-events-none">
               <FileUp className="w-16 h-16 text-blue-500 mb-4 animate-bounce" />
               <p className="text-blue-600 dark:text-blue-300 font-medium text-lg">释放鼠标上传 .srt 文件</p>
             </div>
+          )}
+
+          {/* Minimalist Vertical Floating AI Actions for Current Sentence */}
+          {!isBigTextMode && subtitles.length > 0 && activeSubtitleId && (
+            (() => {
+              const activeSub = subtitles.find(s => s.id === activeSubtitleId);
+              if (!activeSub) return null;
+              return (
+                <div className="absolute bottom-4 right-4 z-40 flex flex-col items-stretch bg-white/95 dark:bg-[#161b22]/95 backdrop-blur-md rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
+                  <button
+                    onClick={() => handleAnalyze(activeSub)}
+                    className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700 border-b border-gray-100 dark:border-gray-800"
+                    title="句法分析"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold">分析</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleTranslate(activeSub)}
+                    disabled={translatingIds.has(activeSub.id) || !!translations[activeSub.id]}
+                    className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:bg-gray-200 dark:active:bg-gray-700 border-b border-gray-100 dark:border-gray-800 ${
+                      translations[activeSub.id]
+                        ? 'text-gray-400 cursor-not-allowed opacity-60'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}
+                    title="极速翻译"
+                  >
+                    {translatingIds.has(activeSub.id) ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Languages className="w-3.5 h-3.5" />
+                    )}
+                    <span className="text-[10px] font-bold">{translations[activeSub.id] ? '已译' : '翻译'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onToggleAi?.(true);
+                    }}
+                    className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700"
+                    title="问问 AI"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500 opacity-80" />
+                    <span className="text-[10px] font-bold">问 AI</span>
+                  </button>
+                </div>
+              );
+            })()
           )}
           
           {!subtitles.length ? (
@@ -581,15 +695,15 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
               </div>
             </div>
           ) : isBigTextMode ? (
-             <div className="h-full flex flex-col items-center p-8 text-center bg-gray-50/30 dark:bg-black/20 overflow-y-auto">
+             <div className="h-full flex flex-col items-center p-4 sm:p-8 text-center bg-gray-50/30 dark:bg-black/20 overflow-y-auto">
                 <div className="flex-1" />
                 {activeSubtitleId ? (
                    (() => {
                       const activeSub = subtitles.find(s => s.id === activeSubtitleId);
                       if (!activeSub) return <div className="text-gray-400">Waiting for subtitle...</div>;
                       return (
-                        <div className="flex flex-col gap-6 animate-fade-in w-full max-w-4xl py-8">
-                           <p className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 dark:text-gray-100 leading-tight tracking-wide">
+                        <div className="flex flex-col gap-4 sm:gap-6 animate-fade-in w-full max-w-4xl py-4 sm:py-8">
+                           <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 dark:text-gray-100 leading-tight tracking-wide">
                               {renderSubtitleText(activeSub.text, activeSub.text)}
                            </p>
                            {isWordSearchEnabled && (
@@ -598,7 +712,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                                <span>点击单词查询释义</span>
                              </div>
                            )}
-                           <div className="flex justify-center mt-4">
+                           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-2 sm:mt-4">
                              <button 
                                onClick={() => handleAnalyze(activeSub)}
                                className="px-6 py-2.5 bg-pink-100 hover:bg-pink-200 text-pink-700 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 dark:text-pink-300 rounded-full font-medium transition-colors flex items-center gap-2"
@@ -620,12 +734,58 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                              </button>
                            </div>
                            {translations[activeSub.id] && (
-                             <div className="mt-8 p-6 bg-gray-50/80 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 animate-fade-in">
-                               <p className="text-2xl md:text-3xl text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+                             <div className="mt-4 sm:mt-8 p-4 sm:p-6 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700/50 animate-fade-in shadow-sm text-left">
+                               <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
                                  {translations[activeSub.id]}
                                </p>
                              </div>
                            )}
+
+                           {/* Ordered Results (Analysis & Dictionary) */}
+                           <div className="mt-6 flex flex-col gap-6 w-full">
+                              {/* Show loading states first as they are transient */}
+                              {isBigTextAnalyzing[activeSub.id] && (
+                                <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-pink-100 dark:border-pink-900/30 animate-pulse flex flex-col items-center gap-3">
+                                  <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
+                                  <p className="text-gray-500 text-sm font-medium">正在进行深度句法分析...</p>
+                                </div>
+                              )}
+                              {Object.entries(isBigTextLookupLoading).map(([key, isLoading]) => {
+                                if (isLoading && key.endsWith(`-${activeSub.text}`)) {
+                                  const word = key.split('-')[0];
+                                  return (
+                                    <div key={key} className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-3 animate-pulse">
+                                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                      <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">正在查询 "{word}"...</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+
+                              {/* Ordered content: latest on top */}
+                              {bigTextResultOrder.map((item) => {
+                                if (item.type === 'analysis' && item.key === activeSub.id) {
+                                  const result = bigTextAnalysisResults[item.key as number];
+                                  if (!result) return null;
+                                  return (
+                                    <div key={`analysis-${item.key}`} className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                      <ResultDisplay result={result} compact={true} />
+                                    </div>
+                                  );
+                                }
+                                if (item.type === 'dictionary' && typeof item.key === 'string' && item.key.endsWith(`-${activeSub.text}`)) {
+                                  const result = bigTextDictionaryResults[item.key];
+                                  if (!result) return null;
+                                  return (
+                                    <div key={`dict-${item.key}`} className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                      <QuickLookupDisplay result={result} hideContext={true} />
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+                           </div>
                         </div>
                       );
                    })()
@@ -644,58 +804,103 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
               itemContent={(_index, sub) => (
                 <div 
                   id={`subtitle-${sub.id}`} 
-                  className={`group relative p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-800/60 ${activeSubtitleId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 pl-2' : 'pl-3'}`}
+                  className={`group relative p-2 sm:p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b border-gray-100 dark:border-gray-800/60 ${activeSubtitleId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 pl-1.5 sm:pl-2.5' : 'pl-2 sm:pl-3'}`}
                 >
-                  <div className="flex gap-3 items-start">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleJumpToTime(sub.startTime);
-                      }}
-                      className="flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-all group-hover:shadow-sm border border-transparent hover:border-blue-200 dark:hover:border-blue-800 h-fit"
-                      title="点击跳转播放"
-                    >
-                      <Play className="w-4 h-4 fill-current" />
-                      <span className="font-mono font-bold text-base">
-                        {new Date(sub.startTime * 1000).toISOString().substr(14, 5)}
+                  <div className="flex flex-col gap-2 min-w-0 pr-2">
+                    <p className="text-sm sm:text-base text-gray-700 dark:text-gray-200 leading-relaxed select-text group/text relative">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleJumpToTime(sub.startTime);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 mr-2 bg-blue-100/50 hover:bg-blue-200/70 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-md transition-all border border-blue-200/50 dark:border-blue-700/50 align-baseline -translate-y-[1px] hover:scale-105 active:scale-95 shadow-sm"
+                        title="点击跳转播放"
+                      >
+                        <Play className="w-3 h-3 fill-current" />
+                        <span className="font-mono font-bold text-xs sm:text-sm">
+                          {new Date(sub.startTime * 1000).toISOString().substr(14, 5)}
+                        </span>
+                      </button>
+
+                      {renderSubtitleText(sub.text, sub.text)}
+                      
+                      {/* Inline subtle buttons */}
+                      <span className={`inline-flex items-center gap-1.5 ml-2 align-middle transition-opacity duration-200 ${activeSubtitleId === sub.id ? 'opacity-100' : 'opacity-0 group-hover/text:opacity-100'}`}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleAnalyze(sub); }}
+                          className="p-1 text-pink-500/60 hover:text-pink-600 dark:text-pink-400/50 dark:hover:text-pink-400 transition-colors"
+                          title="句法分析"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleTranslate(sub); }}
+                          className={`p-1 transition-colors 
+                            ${translations[sub.id] 
+                              ? 'text-gray-300 cursor-not-allowed dark:text-gray-600' 
+                              : 'text-blue-500/60 hover:text-blue-600 dark:text-blue-400/50 dark:hover:text-blue-400'}
+                            ${translatingIds.has(sub.id) ? 'animate-pulse' : ''}`}
+                          disabled={translatingIds.has(sub.id) || !!translations[sub.id]}
+                          title={translations[sub.id] ? "已翻译" : "极速翻译"}
+                        >
+                          <Languages className="w-3.5 h-3.5" />
+                        </button>
                       </span>
-                    </button>
-                    
-                    <div className="flex-1 flex flex-col gap-2 min-w-0 pr-10">
-                      <p className="text-base text-gray-700 dark:text-gray-200 leading-relaxed pt-1.5 select-text">
-                        {renderSubtitleText(sub.text, sub.text)}
-                      </p>
+                    </p>
                       
                       {translations[sub.id] && (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 animate-fade-in">
-                          <p className="text-sm text-gray-900 dark:text-gray-200 font-medium">
+                        <div className="p-2 bg-gray-50/50 dark:bg-gray-800/30 rounded-lg border border-gray-100/50 dark:border-gray-700/30 animate-fade-in mt-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium">
                             {translations[sub.id]}
                           </p>
                         </div>
                       )}
-                    </div>
-                  </div>
 
-                  <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 py-2">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAnalyze(sub); }}
-                      className="p-2 bg-white dark:bg-gray-700 shadow-lg rounded-full text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-gray-600 transition-all border border-gray-100 dark:border-gray-600"
-                      title="句法分析"
-                    >
-                       <Sparkles className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleTranslate(sub); }}
-                      className={`p-2 shadow-lg rounded-full transition-all border 
-                        ${translations[sub.id]
-                          ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700'
-                          : 'bg-white text-blue-500 hover:text-blue-600 hover:bg-blue-50 border-gray-100 dark:bg-gray-700 dark:text-blue-400 dark:hover:bg-gray-600 dark:border-gray-600'}
-                        ${translatingIds.has(sub.id) ? 'animate-spin' : ''}`}
-                      title={translations[sub.id] ? "已翻译" : "极速翻译"}
-                      disabled={translatingIds.has(sub.id) || !!translations[sub.id]}
-                    >
-                       <Languages className="w-4 h-4" />
-                    </button>
+                      {/* Local AI results for regular list (Ordered) */}
+                      <div className="flex flex-col gap-3 mt-2">
+                        {/* Loading States */}
+                        {isBigTextAnalyzing[sub.id] && (
+                          <div className="p-3 bg-white dark:bg-gray-900 rounded-xl border border-pink-100 dark:border-pink-900/30 animate-pulse flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
+                            <p className="text-gray-400 text-xs">正在分析句法...</p>
+                          </div>
+                        )}
+                        {Object.entries(isBigTextLookupLoading).map(([key, isLoading]) => {
+                          if (isLoading && key.endsWith(`-${sub.text}`)) {
+                            const word = key.split('-')[0];
+                            return (
+                              <div key={key} className="p-2 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-center gap-2 animate-pulse">
+                                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                                <span className="text-blue-500 text-xs font-medium">查询 "{word}"...</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+
+                        {/* Results in Order: Latest on Top */}
+                        {bigTextResultOrder.map((item) => {
+                          if (item.type === 'analysis' && item.key === sub.id) {
+                            const result = bigTextAnalysisResults[item.key as number];
+                            if (!result) return null;
+                            return (
+                              <div key={`analysis-${item.key}`} className="animate-in fade-in slide-in-from-top-1 duration-300">
+                                <ResultDisplay result={result} compact={true} />
+                              </div>
+                            );
+                          }
+                          if (item.type === 'dictionary' && typeof item.key === 'string' && item.key.endsWith(`-${sub.text}`)) {
+                            const result = bigTextDictionaryResults[item.key];
+                            if (!result) return null;
+                            return (
+                              <div key={`dict-${item.key}`} className="animate-in fade-in slide-in-from-top-1 duration-300">
+                                <QuickLookupDisplay result={result} hideContext={true} />
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
                   </div>
                 </div>
               )}

@@ -69,7 +69,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
             )}
 
             {/* Visualization Card */}
-            <div className={`bg-white dark:bg-[#0d1117] shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40 border border-gray-100 dark:border-gray-800/60 overflow-hidden relative transition-colors ${compact ? 'rounded-2xl' : 'rounded-[2rem]'}`}>
+            <div className={`bg-white dark:bg-[#0d1117] shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40 border border-gray-100 dark:border-gray-800/60 overflow-hidden relative transition-colors ${compact ? 'rounded-xl md:rounded-2xl' : 'rounded-2xl md:rounded-[2rem]'}`}>
 
                 {/* Header / Controls */}
                 <div className={`bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700 flex flex-col gap-4 transition-colors ${compact ? 'px-5 py-4' : 'px-8 py-6'}`}>
@@ -84,16 +84,16 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                             </div>
 
                             {/* Sentence Tags: Pattern & Tense */}
-                            <div className="flex flex-wrap gap-2 mt-3">
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3">
                                 {result.sentencePattern && (
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 text-[10px] md:text-xs font-bold shadow-sm">
-                                        <GitMerge className="w-3 h-3" />
+                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 text-[10px] sm:text-xs font-bold shadow-xs">
+                                        <GitMerge className="w-2.5 h-2.5 sm:w-3 h-3" />
                                         <span>{result.sentencePattern}</span>
                                     </div>
                                 )}
                                 {result.mainTense && (
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/50 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400 text-[10px] md:text-xs font-bold shadow-sm">
-                                        <Clock className="w-3 h-3" />
+                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/50 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400 text-[10px] sm:text-xs font-bold shadow-xs">
+                                        <Clock className="w-2.5 h-2.5 sm:w-3 h-3" />
                                         <span>{result.mainTense}</span>
                                     </div>
                                 )}
@@ -130,13 +130,13 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
 
             {/* Detailed Breakdown Table (Lexical Units) */}
             <div className={`bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-gray-800/60 shadow-lg shadow-gray-200/30 dark:shadow-gray-900/30 transition-colors ${compact ? 'rounded-2xl p-4' : 'rounded-[2rem] p-8'}`}>
-                <div className={`flex items-center gap-3 border-b border-gray-100 dark:border-gray-800/60 ${compact ? 'mb-4 pb-2' : 'mb-8 pb-4'}`}>
-                    <div className={`rounded-xl bg-pink-50 dark:bg-pink-950/50 flex items-center justify-center text-pink-600 dark:text-pink-400 ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}>
-                        <BookOpen className={`${compact ? 'w-4 h-4' : 'w-6 h-6'}`} />
+                <div className={`flex items-center gap-2 sm:gap-3 border-b border-gray-100 dark:border-gray-800/60 ${compact ? 'mb-3 pb-2' : 'mb-6 md:mb-8 pb-4'}`}>
+                    <div className={`rounded-xl bg-pink-50 dark:bg-pink-950/50 flex items-center justify-center text-pink-600 dark:text-pink-400 ${compact ? 'w-7 h-7' : 'w-10 h-10'}`}>
+                        <BookOpen className={`${compact ? 'w-3.5 h-3.5' : 'w-6 h-6'}`} />
                     </div>
                     <div>
-                        <h3 className={`font-bold text-gray-800 dark:text-gray-200 ${compact ? 'text-sm' : 'text-xl'}`}>逐词/意群详解</h3>
-                        {!compact && <p className="text-gray-400 dark:text-gray-500 text-sm">深入理解重点词组与固定搭配</p>}
+                        <h3 className={`font-bold text-gray-800 dark:text-gray-200 ${compact ? 'text-xs sm:text-sm' : 'text-lg md:text-xl'}`}>逐词/意群详解</h3>
+                        {!compact && <p className="text-gray-400 dark:text-gray-500 text-xs hidden sm:block">深入理解重点词组与固定搭配</p>}
                     </div>
                 </div>
 
@@ -192,7 +192,7 @@ const ChunkColumn: React.FC<{ chunk: AnalysisChunk; compact: boolean }> = ({ chu
     return (
         <div className="flex flex-col items-center text-center group">
             {/* Top: English Text */}
-            <div className={`${compact ? 'text-xl md:text-2xl pb-2 mb-2' : 'text-4xl md:text-5xl px-2 pb-4 mb-4'} font-serif text-gray-800 dark:text-gray-200 border-b-[3px] border-pink-100 dark:border-pink-800 group-hover:border-pink-300 dark:group-hover:border-pink-600 transition-colors font-medium tracking-tight`}>
+            <div className={`${compact ? 'text-lg sm:text-xl md:text-2xl pb-1.5 mb-2' : 'text-2xl sm:text-3xl md:text-5xl px-2 pb-3 sm:pb-4 mb-3 sm:mb-4'} font-serif text-gray-800 dark:text-gray-200 border-b-[3px] border-pink-100 dark:border-pink-800 group-hover:border-pink-300 dark:group-hover:border-pink-600 transition-colors font-medium tracking-tight`}>
                 {chunk.text}
             </div>
 

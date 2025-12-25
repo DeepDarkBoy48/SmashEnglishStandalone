@@ -5,6 +5,7 @@ import type { Message, Thread } from '../types';
 import { getChatResponseService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 import { ResultDisplay } from './ResultDisplay';
+import { CompactDictionaryResult, QuickLookupDisplay } from './AiSharedComponents';
 
 interface AiAssistantProps {
   currentContext: string | null;
@@ -56,12 +57,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen, isThinking]);
-
-  // Handle context changes - Note: Parent should probably handle the "New Context" message if desired, 
-  // or we can keep this effect but be careful not to conflict with parent updates.
-  // For now, let's allow the parent to reset messages if needed, or we can just append a system message here.
-  // But strictly lifting state means parent controls messages. 
-  // Let's rely on parent to add "Context Loaded" message if it wants to reset conversation.
 
   const handleSend = async (content: string) => {
     if (!content.trim() || isThinking) return;
@@ -131,7 +126,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     );
   };
 
-  // 固定模式使用简洁的头部样式
   const renderPinnedHeader = () => (
     <div className="p-4 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between bg-white dark:bg-[#0d1117] shrink-0">
       <div className="flex items-center gap-2 overflow-hidden">
@@ -172,7 +166,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     </div>
   );
 
-  // 浮动模式使用简洁头部 - 白色背景+粉红描边
   const renderFloatingHeader = () => (
     <div className="bg-white dark:bg-[#0d1117] px-3 py-2 flex justify-between items-center border-b border-pink-200 dark:border-pink-800/50 z-10 shrink-0 safe-top">
       <div className="flex items-center gap-2">
@@ -204,7 +197,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     </div>
   );
 
-
   return (
     <div className={containerClasses}>
       <style>{`
@@ -219,12 +211,9 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
       {(isOpen || isPinned) && (
         <>
           <div className={cardClasses}>
-          {/* Header - 根据模式切换样式 */}
           {isPinned ? renderPinnedHeader() : renderFloatingHeader()}
 
-          {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-            {/* History Overlay */}
             {showHistory && (
               <div className="absolute inset-0 bg-white dark:bg-[#0d1117] z-30 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="p-3 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between">
@@ -285,7 +274,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
               </div>
             )}
 
-            {/* Messages */}
             <div className={`flex-1 overflow-y-auto space-y-4 custom-scrollbar transition-colors ${isPinned ? 'px-4 py-3 bg-white dark:bg-[#0d1117]' : 'px-3 py-4 bg-gray-50 dark:bg-gray-800/50 space-y-6'}`}>
               {messages.length === 0 && !isThinking && (
                 <div className="flex flex-col items-center justify-center h-48 text-gray-400 space-y-3">
@@ -334,14 +322,12 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
             </div>
           </div>
 
-          {/* Suggestions */}
           {!isThinking && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && (
             <div className={`px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar shrink-0 transition-colors ${isPinned ? 'bg-white dark:bg-[#0d1117] border-t border-gray-100 dark:border-gray-800/60' : 'bg-gray-50 dark:bg-gray-800/50 border-t border-gray-50 dark:border-gray-700/50'}`}>
               {renderSuggestions()}
             </div>
           )}
 
-          {/* Input */}
           <form onSubmit={onSubmit} className={`shrink-0 safe-bottom transition-colors ${isPinned ? 'p-3 bg-white dark:bg-[#0d1117] border-t border-gray-100 dark:border-gray-800/60' : 'p-3 bg-white dark:bg-[#0d1117] border-t border-gray-100 dark:border-gray-700'}`}>
             <div className="relative flex items-center">
               <input
@@ -360,8 +346,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
         </>
       )}
 
-      {/* Toggle Button - Only show when NOT pinned */}
-      {!isPinned && (
+      {!isPinned && activeTab !== 'youtube' && (
         <button
           onClick={() => onOpenChange(!isOpen)}
           className={`group p-3 rounded-full shadow-lg transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${isOpen ? 'hidden md:flex bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rotate-90 scale-90' : 'flex bg-gradient-to-tr from-pink-600 to-rose-500 text-white hover:scale-105 hover:-translate-y-0.5'}`}
@@ -373,123 +358,3 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     </div>
   );
 };
-
-const CompactDictionaryResult: React.FC<{ result: any }> = ({ result }) => {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-baseline gap-2 border-b border-gray-100 dark:border-gray-800/60 pb-2">
-        <h4 className="text-xl font-bold text-gray-900 dark:text-white leading-none">{result.word}</h4>
-        <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{result.phonetic}</span>
-      </div>
-      
-      <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar pt-2">
-        {result.entries.map((entry: any, eIdx: number) => (
-          <div key={eIdx} className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-                {entry.partOfSpeech}
-              </span>
-            </div>
-            <div className="space-y-3 pl-1">
-              {entry.definitions.map((def: any, dIdx: number) => (
-                <div key={dIdx} className="text-sm">
-                  <div className="flex gap-2">
-                    <span className="text-gray-300 dark:text-gray-600 font-bold shrink-0">{dIdx + 1}.</span>
-                    <div>
-                      <p className="font-bold text-gray-800 dark:text-gray-200 leading-snug">{def.meaning}</p>
-                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{def.explanation}</p>
-                    </div>
-                  </div>
-                  <div className="mt-1.5 ml-6 p-2 bg-gray-50 dark:bg-gray-800/20 rounded-lg border border-gray-100 dark:border-gray-800/60/50">
-                    <p className="text-xs text-gray-600 dark:text-gray-300 italic">"{def.example}"</p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{def.exampleTranslation}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// 快速上下文查词结果展示组件
-const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean }> = ({ result, isPinned = false }) => {
-  return (
-    <div className={`border rounded-xl ${isPinned ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30 p-4' : 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800/80 border-blue-200 dark:border-blue-900/50 rounded-2xl p-5 shadow-sm'}`}>
-      {/* 单词标题与词性/成分标签 */}
-      <div className={`flex flex-wrap items-center gap-2 ${isPinned ? 'mb-3' : 'mb-4'}`}>
-        <span className={`font-bold text-blue-700 dark:text-blue-400 ${isPinned ? 'text-xl' : 'text-2xl'}`}>
-          {result.word}
-        </span>
-        <div className="flex gap-1.5">
-          {result.grammarRole && (
-            <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 text-xs font-medium rounded-full border border-indigo-200 dark:border-indigo-800/50">
-              {result.grammarRole}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 原句展示 */}
-      {result.originalSentence && (
-        <div className="mb-4 p-4 bg-white dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700/50 relative overflow-hidden group shadow-sm">
-          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-pink-500 opacity-80" />
-          <p className="text-xl text-gray-900 dark:text-white leading-relaxed font-bold pr-2">
-            {(() => {
-              const text = result.originalSentence;
-              const word = result.word;
-              if (!word) return `"${text}"`;
-              
-              // Use regex to case-insensitively find the word
-              const parts = text.split(new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
-              return (
-                <>
-                  "
-                  {parts.map((part: string, i: number) => 
-                    part.toLowerCase() === word.toLowerCase() ? (
-                      <span key={i} className="bg-yellow-200 dark:bg-yellow-900/50 px-1 rounded text-gray-900 dark:text-white">
-                        {part}
-                      </span>
-                    ) : (
-                      part
-                    )
-                  )}
-                  "
-                </>
-              );
-            })()}
-          </p>
-        </div>
-      )}
-      
-      {/* 释义与词性 */}
-      <div className={`${isPinned ? 'mb-3' : 'mb-4'}`}>
-        <div className={`font-semibold text-gray-800 dark:text-gray-100 flex items-baseline gap-2 ${isPinned ? 'text-base' : 'text-lg'}`}>
-          <span className="shrink-0">📖</span>
-          <span>{result.contextMeaning}</span>
-          {result.partOfSpeech && (
-            <span className="text-sm font-normal text-gray-400 dark:text-gray-500 italic ml-1">
-              ({result.partOfSpeech})
-            </span>
-          )}
-        </div>
-      </div>
-      
-      {/* 解释 */}
-      <div className={`rounded-lg p-3 border ${isPinned ? 'bg-white/80 dark:bg-gray-900/30 border-blue-100/50 dark:border-gray-800' : 'bg-white/60 dark:bg-gray-900/40 rounded-xl p-4 border-blue-100/50 dark:border-gray-700'}`}>
-        <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-            <span className="text-blue-500 dark:text-blue-400 font-bold text-xs uppercase tracking-wider">为什么</span>
-          </div>
-          <p className="pl-1 border-l-2 border-blue-100 dark:border-blue-900/50">
-            {result.explanation}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-

@@ -40,6 +40,9 @@ const App: React.FC = () => {
   const [analyzerResult, setAnalyzerResult] = useState<AnalysisResult | null>(DEMO_RESULT);
   const [analyzerError, setAnalyzerError] = useState<string | null>(null);
 
+  // Immersive Mode State
+  const [isImmersive, setIsImmersive] = useState(false);
+
   // Dictionary State
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
 
@@ -290,22 +293,25 @@ const App: React.FC = () => {
 
   // Dynamic container padding based on active tab
   const getContainerPadding = () => {
+    if (isImmersive) return 'p-0';
     if (activeTab === 'youtube') {
-      return 'px-4 py-2'; // Minimal padding for video page to maximize space
+      return 'xl:px-4 xl:py-2 px-0 py-0'; // Minimal padding for video page to maximize space
     }
-    return 'px-4 py-8';
+    return 'px-4 py-6 md:py-8';
   };
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <div className="h-full flex flex-col bg-gray-50 dark:bg-black text-gray-800 dark:text-gray-200 font-sans transition-colors overflow-hidden">
-        <Header
-          activeTab={activeTab}
-          onNavigate={setActiveTab}
-        />
+        {!isImmersive && (
+          <Header
+            activeTab={activeTab}
+            onNavigate={setActiveTab}
+          />
+        )}
 
         <div className="flex-1 flex overflow-hidden relative">
-          <main className={`flex-1 overflow-y-auto ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' ? 'gap-2' : 'gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
+          <main className={`flex-1 ${activeTab === 'youtube' ? 'overflow-hidden' : 'overflow-y-auto'} ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' || isImmersive ? 'gap-0' : 'gap-6 md:gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
 
             {activeTab === 'analyzer' && (
               <div className="w-full max-w-5xl flex flex-col gap-8">
@@ -315,10 +321,10 @@ const App: React.FC = () => {
                     <Sparkles className="w-5 h-5 mr-2" />
                     <span className="text-sm font-medium">AI 驱动的英语语法分析</span>
                   </div>
-                  <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-50 font-serif">
+                  <h1 className="text-2xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-50 font-serif">
                     英语句子成分可视化
                   </h1>
-                  <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                  <p className="text-sm md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                     输入任何英语句子，立刻解析其主谓宾定状补结构。
                     <br className="hidden md:block" />适合英语学习者、教师及语言爱好者。
                   </p>
@@ -383,14 +389,17 @@ const App: React.FC = () => {
                 onTriggerAnalysis={handleTriggerAnalysis} 
                 onTriggerDictionary={handleTriggerDictionary}
                 isAiAssistantOpen={aiIsOpen}
+                onToggleAi={setAiIsOpen}
                 playerRefExternal={playerRef}
+                isImmersive={isImmersive}
+                onImmersiveChange={setIsImmersive}
               />
             )}
           </main>
 
           {/* Pinned AI Assistant Sidebar */}
           {aiIsPinned && (
-            <div className="w-[400px] 2xl:w-[450px] shrink-0 border-l border-gray-200 dark:border-gray-800/60 bg-white dark:bg-[#0d1117] z-20 transition-all duration-300">
+            <div className="hidden xl:block w-[400px] 2xl:w-[450px] shrink-0 border-l border-gray-200 dark:border-gray-800/60 bg-white dark:bg-[#0d1117] z-20 transition-all duration-300">
               <AiAssistant
                 currentContext={activeThread?.context || assistantContextContent}
                 contextType={activeThread?.contextType || contextType}
@@ -415,8 +424,8 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Floating AI Assistant (Controlled) */}
-        {!aiIsPinned && (
+        {/* Floating AI Assistant (Controlled) - Show if not pinned OR if on small screen where pinned is hidden */}
+        {(!aiIsPinned || (typeof window !== 'undefined' && window.innerWidth < 1280)) && (
           <AiAssistant
             currentContext={activeThread?.context || assistantContextContent}
             contextType={activeThread?.contextType || contextType}
