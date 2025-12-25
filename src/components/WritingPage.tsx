@@ -95,7 +95,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
     const [inputText, setInputText] = useState(DEMO_ORIGINAL_TEXT);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [mode, setMode] = useState<WritingMode>('fix');
+    const [mode] = useState<WritingMode>('fix');
     const [result, setResult] = useState<WritingResult | null>(initialResult ?? DEMO_WRITING_RESULT);
 
     // Page Mode State (写作纠错 / 文章精读)
@@ -249,7 +249,7 @@ export const WritingPage: React.FC<WritingPageProps> = ({ initialResult, onResul
         setIsPageModeDropdownOpen(false);
     };
 
-    const isIeltsMode = (m: WritingMode) => false;
+    const isIeltsMode = (_m: WritingMode) => false;
     const isDiffView = viewMode === 'diff';
 
     return (
