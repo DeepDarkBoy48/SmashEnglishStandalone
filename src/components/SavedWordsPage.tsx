@@ -9,7 +9,7 @@ import type { DailyNote, SavedWord } from '../types';
 import { 
   BookMarked, Clock, ChevronRight, MessageSquare, 
   Trash2, Loader2, Sparkles, Calendar, ArrowLeft, 
-  BookOpen, BrainCircuit, ExternalLink, Download, FileJson
+  BookOpen, BrainCircuit, ExternalLink, Download, FileJson, FileCode
 } from 'lucide-react';
 import { getSavedWordsService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
@@ -97,6 +97,51 @@ export const SavedWordsPage: React.FC = () => {
     }
   };
 
+  const handleExportNote = (format: 'md' | 'json') => {
+    if (!selectedNote || !selectedNote.words) return;
+    const { note, words } = selectedNote;
+    
+    let content = '';
+    let filename = `vocab_${note.day.replace(/-/g, '_')}`;
+
+    if (format === 'md') {
+      content = `# 今日词汇 (${words.length}) - ${note.day}\n\n`;
+      
+      words.forEach(item => {
+        const meaning = item.data?.contextMeaning || item.data?.m || '';
+        const pos = item.data?.partOfSpeech || item.data?.p || '';
+        const explanation = item.data?.explanation || '';
+        const url = item.url || item.data?.url || '';
+        
+        const highlightedContext = item.context.replace(
+          new RegExp(`(${item.word})`, 'gi'), 
+          '**$1**'
+        );
+
+        content += `### ${item.word} [${pos.toUpperCase()}]\n\n`;
+        content += `**释义**: ${meaning}\n\n`;
+        content += `> "${highlightedContext}"\n\n`;
+        content += `**AI 解析**:\n${explanation}\n\n`;
+        if (url) content += `**来源**: [${url}](${url})\n\n`;
+        content += `---\n`;
+      });
+      filename += '.md';
+    } else {
+      content = JSON.stringify(words, null, 2);
+      filename += '.json';
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleExportAll = async (format: 'md' | 'json') => {
     setIsExporting(true);
     try {
@@ -116,7 +161,6 @@ export const SavedWordsPage: React.FC = () => {
           const explanation = item.data?.explanation || '';
           const url = item.url || item.data?.url || '';
           
-          // Highlight word in context
           const highlightedContext = item.context.replace(
             new RegExp(`(${item.word})`, 'gi'), 
             '**$1**'
@@ -165,7 +209,7 @@ export const SavedWordsPage: React.FC = () => {
   if (selectedNote) {
     const { note, words } = selectedNote;
     return (
-      <div className="w-full max-w-6xl mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-500 px-4">
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-500 px-4">
         <div className="flex items-center justify-between">
           <button 
             onClick={() => setSelectedNote(null)}
@@ -175,9 +219,29 @@ export const SavedWordsPage: React.FC = () => {
             <span className="font-medium">返回卡片列表</span>
           </button>
           
-          <div className="flex items-center gap-3 text-sm text-gray-400">
-             <Calendar className="w-4 h-4" />
-             <span>{note.day}</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 p-1.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <button 
+                onClick={() => handleExportNote('md')}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 transition-all active:scale-95"
+              >
+                <Download className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                导出 Markdown
+              </button>
+              <div className="w-px h-4 bg-gray-100 dark:bg-gray-800" />
+              <button 
+                onClick={() => handleExportNote('json')}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 transition-all active:scale-95"
+              >
+                <FileCode className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                导出 JSON
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
+               <Calendar className="w-4 h-4" />
+               <span>{note.day}</span>
+            </div>
           </div>
         </div>
 
@@ -210,7 +274,7 @@ export const SavedWordsPage: React.FC = () => {
 
         {/* Blog Content Section */}
         {note.content ? (
-          <div className="max-w-4xl bg-white/50 dark:bg-gray-900/30 backdrop-blur-xl border border-white/20 dark:border-gray-800/50 rounded-3xl p-8 shadow-xl shadow-black/5">
+          <div className="bg-white/50 dark:bg-gray-900/30 backdrop-blur-xl border border-white/20 dark:border-gray-800/50 rounded-3xl p-8 shadow-xl shadow-black/5">
             {note.summary && (
               <div className="mb-8 p-6 bg-pink-50/50 dark:bg-pink-900/10 border-l-4 border-pink-400 rounded-r-2xl">
                 <p className="text-lg font-medium text-pink-950 dark:text-pink-100 italic leading-relaxed">
@@ -258,7 +322,7 @@ export const SavedWordsPage: React.FC = () => {
               <h2 className="text-2xl font-bold font-serif">当日词汇表</h2>
            </div>
            
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {!words ? (
                 // Loading Skeletons
                 Array.from({ length: note.word_count || 3 }).map((_, i) => (
@@ -343,22 +407,22 @@ export const SavedWordsPage: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">记录您的每一次语言探索</p>
         </div>
         <div className="flex items-center gap-3">
-           <button 
-             onClick={() => handleExportAll('md')}
-             disabled={isExporting}
-             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:border-pink-500 hover:text-pink-500 transition-all shadow-sm disabled:opacity-50"
-           >
-             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-             导出 Markdown
-           </button>
-           <button 
-             onClick={() => handleExportAll('json')}
-             disabled={isExporting}
-             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:border-blue-500 hover:text-blue-500 transition-all shadow-sm disabled:opacity-50"
-           >
-             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
-             导出 JSON
-           </button>
+            <button 
+              onClick={() => handleExportAll('md')}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all shadow-sm disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              导出 Markdown
+            </button>
+            <button 
+              onClick={() => handleExportAll('json')}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all shadow-sm disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
+              导出 JSON
+            </button>
         </div>
       </div>
 
