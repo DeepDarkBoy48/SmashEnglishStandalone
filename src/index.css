@@ -174,3 +174,37 @@ body {
 .animate-bounce-slow {
   animation: bounce-slow 1.5s ease-in-out infinite;
 }
+
+/* YouTube Player Safari/iOS Fixes */
+#youtube-player {
+  display: block;
+}
+
+iframe#youtube-player {
+  border: none;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure iframes don't overflow on small screens or Safari */
+iframe {
+  max-width: 100%;
+}
+
+/* Aspect ratio containment for modern browsers */
+.aspect-video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+  overflow: hidden;
+}
+
+.aspect-video-container #youtube-player {
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+}

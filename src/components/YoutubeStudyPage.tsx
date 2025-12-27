@@ -717,7 +717,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
           </div>
         </div>
         
-        <div className="bg-black relative aspect-video lg:landscape:flex-1">
+        <div className={`bg-black relative aspect-video lg:landscape:aspect-auto lg:landscape:flex-1 min-h-0 overflow-hidden flex items-center justify-center w-full`}>
           {!videoId ? (
              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 lg:p-6 text-center bg-gray-100 dark:bg-[#0d1117]">
                 <div className="w-full max-w-md">
@@ -737,7 +737,11 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                 </div>
              </div>
           ) : (
-            <div id="youtube-player" className="absolute inset-0 w-full h-full"></div>
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-auto aspect-video max-w-full max-h-full">
+                <div id="youtube-player" className="absolute inset-0 w-full h-full"></div>
+              </div>
+            </div>
           )}
         </div>
       </div>
