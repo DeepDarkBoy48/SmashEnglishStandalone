@@ -20,7 +20,6 @@ export const SavedWordsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -29,13 +28,12 @@ export const SavedWordsPage: React.FC = () => {
 
   const fetchNotes = async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const data = await getDailyNotesService();
       setNotes(data.notes);
     } catch (err: any) {
       console.error(err);
-      setError('无法加载卡片列表，请稍后再试。');
+      alert('无法加载卡片列表，请稍后再试。');
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +49,7 @@ export const SavedWordsPage: React.FC = () => {
       setSelectedNote(data);
     } catch (err) {
       console.error(err);
-      setError('无法加载详情，请重试。');
+      alert('AI 总结失败，请稍后再试。');
     } finally {
       setIsDetailLoading(false);
     }

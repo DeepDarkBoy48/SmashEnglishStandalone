@@ -1,14 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Play, 
-  Search,
   FileUp,
-  Settings,
   Settings2,
   Loader2,
   ChevronRight,
   Sparkles,
-  Info,
   Languages
 } from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
