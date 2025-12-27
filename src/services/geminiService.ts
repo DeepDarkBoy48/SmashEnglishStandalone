@@ -1,5 +1,19 @@
 import request from "@/utils/request";
-import type { AnalysisResult, DictionaryResult, WritingResult, Message, WritingMode, QuickLookupResult, TranslateResult, RapidLookupResult } from "../types";
+import type { 
+  AnalysisResult, 
+  DictionaryResult, 
+  WritingResult, 
+  Message, 
+  WritingMode, 
+  QuickLookupResult, 
+  TranslateResult, 
+  RapidLookupResult, 
+  SavedWordsResponse, 
+  DailyNotesResponse, 
+  NoteDetailResponse,
+  VideoNotebook,
+  VideoNotebookListResponse
+} from "../types";
 
 // --- Public Services ---
 
@@ -30,8 +44,8 @@ export const getChatResponseService = async (
   return result.response;
 };
 
-export const quickLookupService = (word: string, context: string): Promise<QuickLookupResult> => {
-  return request.post('/fastapi/quick-lookup', { word, context }) as Promise<QuickLookupResult>;
+export const quickLookupService = (word: string, context: string, url?: string): Promise<QuickLookupResult> => {
+  return request.post('/fastapi/quick-lookup', { word, context, url }) as Promise<QuickLookupResult>;
 };
 
 export const translateService = (text: string): Promise<TranslateResult> => {
@@ -39,4 +53,58 @@ export const translateService = (text: string): Promise<TranslateResult> => {
 };
 export const rapidLookupService = (word: string, context: string): Promise<RapidLookupResult> => {
   return request.post('/fastapi/rapid-lookup', { word, context }) as Promise<RapidLookupResult>;
+};
+
+export const getSavedWordsService = (): Promise<SavedWordsResponse> => {
+  return request.get('/fastapi/saved-words') as Promise<SavedWordsResponse>;
+};
+
+export const getDailyNotesService = (): Promise<DailyNotesResponse> => {
+  return request.get('/fastapi/daily-notes') as Promise<DailyNotesResponse>;
+};
+
+export const getNoteDetailService = (noteId: number): Promise<NoteDetailResponse> => {
+  return request.get(`/fastapi/daily-notes/${noteId}`) as Promise<NoteDetailResponse>;
+};
+
+export const summarizeDailyNoteService = (noteId: number): Promise<{ title: string, summary: string, content: string }> => {
+  return request.post(`/fastapi/daily-notes/${noteId}/summarize`) as Promise<{ title: string, summary: string, content: string }>;
+};
+
+export const deleteSavedWordService = (wordId: number): Promise<any> => {
+  return request.delete(`/fastapi/saved-words/${wordId}`);
+};
+
+// --- Video Notebook Services ---
+
+export const listNotebooksService = (): Promise<VideoNotebookListResponse> => {
+  return request.get('/fastapi/notebooks') as Promise<VideoNotebookListResponse>;
+};
+
+export const getNotebookDetailService = (notebookId: number): Promise<VideoNotebook> => {
+  return request.get(`/fastapi/notebooks/${notebookId}`) as Promise<VideoNotebook>;
+};
+
+export const createNotebookService = (data: {
+  title: string;
+  video_url: string;
+  video_id: string | null;
+  srt_content: string;
+  thumbnail_url: string | null;
+}): Promise<VideoNotebook> => {
+  return request.post('/fastapi/notebooks', data) as Promise<VideoNotebook>;
+};
+
+export const updateNotebookService = (notebookId: number, data: Partial<{
+  title: string;
+  video_url: string;
+  video_id: string | null;
+  srt_content: string;
+  thumbnail_url: string | null;
+}>): Promise<VideoNotebook> => {
+  return request.put(`/fastapi/notebooks/${notebookId}`, data) as Promise<VideoNotebook>;
+};
+
+export const deleteNotebookService = (notebookId: number): Promise<any> => {
+  return request.delete(`/fastapi/notebooks/${notebookId}`);
 };

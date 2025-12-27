@@ -105,6 +105,7 @@ export interface QuickLookupResult {
   grammarRole: string;     // 语法角色
   explanation: string;     // 解释为什么是这个意思
   originalSentence?: string; // 原句内容
+  url?: string;             // 原始链接
 }
 
 // --- Rapid Lookup (Ultra Fast) ---
@@ -126,4 +127,52 @@ export interface Thread {
 // --- Translation ---
 export interface TranslateResult {
   translation: string;
+}
+
+export interface SavedWord {
+  id: number;
+  word: string;
+  context: string;
+  url?: string;
+  data: any; // QuickLookupResult data
+  created_at?: string;
+  note_id?: number;
+}
+
+export interface SavedWordsResponse {
+  words: SavedWord[];
+}
+
+export interface DailyNote {
+  id: number;
+  title: string | null;
+  day: string;
+  summary: string | null;
+  content: string | null;
+  word_count: number;
+  created_at: string;
+}
+
+export interface DailyNotesResponse {
+  notes: DailyNote[];
+}
+
+export interface NoteDetailResponse {
+  note: DailyNote;
+  words: SavedWord[];
+}
+
+export interface VideoNotebook {
+  id: number;
+  title: string;
+  video_url: string;
+  video_id: string | null;
+  srt_content: string | null;
+  thumbnail_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VideoNotebookListResponse {
+  notebooks: VideoNotebook[];
 }

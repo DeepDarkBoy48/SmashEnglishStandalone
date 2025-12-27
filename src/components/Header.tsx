@@ -1,10 +1,10 @@
 
-import { Sparkles, Book, PenTool } from 'lucide-react';
+import { Sparkles, Book, PenTool, Star } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
-  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube';
-  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube') => void;
+  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words';
+  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
@@ -66,6 +66,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
             >
               <Sparkles className="w-4 h-4 hidden sm:block" />
               视频学习
+            </button>
+            <button
+              onClick={() => onNavigate('saved-words')}
+              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'saved-words'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <Star className="w-4 h-4 hidden sm:block" />
+              收藏
             </button>
           </nav>
           

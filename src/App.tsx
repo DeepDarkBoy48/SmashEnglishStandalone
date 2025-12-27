@@ -4,11 +4,13 @@ import { InputArea } from './components/InputArea';
 import { ResultDisplay } from './components/ResultDisplay';
 import { DictionaryPage } from './components/DictionaryPage';
 import { WritingPage } from './components/WritingPage';
+import { SavedWordsPage } from './components/SavedWordsPage';
 
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
+import { VideoNotebookPage } from './components/VideoNotebookPage';
 import { analyzeSentenceService, quickLookupService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread, Message } from './types';
+import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread, Message, VideoNotebook } from './types';
 import { ThemeProvider } from './components/ThemeContext';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
@@ -33,7 +35,7 @@ const DEMO_RESULT: AnalysisResult = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube'>('analyzer');
+  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words'>('analyzer');
 
   // Analyzer State - 使用预加载的示例数据作为初始值
   const [isAnalyzerLoading, setIsAnalyzerLoading] = useState(false);
@@ -57,6 +59,9 @@ const App: React.FC = () => {
   const [aiIsPinned, setAiIsPinned] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+
+  // Video Notebook State
+  const [selectedNotebook, setSelectedNotebook] = useState<VideoNotebook | null>(null);
 
   // Helper to get active thread
   const activeThread = threads.find(t => t.id === activeThreadId) || null;
@@ -210,6 +215,13 @@ const App: React.FC = () => {
 
     const cacheKey = `${cleanWord}::${context}`;
 
+    // Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(cleanWord);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+
     // Find if there's an active thread of type 'word' that has less than 10 words
     const currentThread = threads.find(t => t.id === activeThreadId);
     // ... (rest of logic)
@@ -267,9 +279,18 @@ const App: React.FC = () => {
 
     // 3. Perform Quick Lookup
     try {
-      const result = await quickLookupService(cleanWord, context);
+      // Find videoId if in youtube tab
+      let currentUrl = window.location.href;
+      if (activeTab === 'youtube' && playerRef.current?.getVideoData) {
+        const videoData = playerRef.current.getVideoData();
+        const vId = videoData.video_id;
+        const currentTime = Math.floor(playerRef.current.getCurrentTime());
+        currentUrl = `https://www.youtube.com/watch?v=${vId}&t=${currentTime}s`;
+      }
+      const result = await quickLookupService(cleanWord, context, currentUrl);
       const resultWithSentence = { ...result, originalSentence: context };
       setQuickLookupCache(prev => ({ ...prev, [cacheKey]: result }));
+
       setThreads(prev => prev.map(t => t.id === threadId ? {
         ...t,
         messages: [...t.messages.filter(m => !m.content.includes(`正在查询 **${cleanWord}**`)), {
@@ -385,15 +406,26 @@ const App: React.FC = () => {
             )}
 
             {activeTab === 'youtube' && (
-              <YoutubeStudyPage 
-                onTriggerAnalysis={handleTriggerAnalysis} 
-                onTriggerDictionary={handleTriggerDictionary}
-                isAiAssistantOpen={aiIsOpen}
-                onToggleAi={setAiIsOpen}
-                playerRefExternal={playerRef}
-                isImmersive={isImmersive}
-                onImmersiveChange={setIsImmersive}
-              />
+              selectedNotebook ? (
+                <YoutubeStudyPage 
+                  onTriggerAnalysis={handleTriggerAnalysis} 
+                  onTriggerDictionary={handleTriggerDictionary}
+                  isAiAssistantOpen={aiIsOpen}
+                  onToggleAi={setAiIsOpen}
+                  playerRefExternal={playerRef}
+                  isImmersive={isImmersive}
+                  onImmersiveChange={setIsImmersive}
+                  notebookId={selectedNotebook.id}
+                  initialNotebookData={selectedNotebook}
+                  onBack={() => setSelectedNotebook(null)}
+                />
+              ) : (
+                <VideoNotebookPage onSelectNotebook={setSelectedNotebook} />
+              )
+            )}
+
+            {activeTab === 'saved-words' && (
+              <SavedWordsPage />
             )}
           </main>
 

@@ -1,10 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Play, Sparkles, FileUp, RefreshCw, Languages, Settings2, Loader2 } from 'lucide-react';
+import { 
+  Play, 
+  Search,
+  FileUp,
+  Settings,
+  Settings2,
+  Loader2,
+  ChevronRight,
+  Sparkles,
+  Info,
+  Languages
+} from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { parseSRT, optimizeSubtitles } from '../utils/srtParser';
 import type { SubtitleItem } from '../utils/srtParser';
-import { translateService, rapidLookupService, analyzeSentenceService, quickLookupService } from '../services/geminiService';
-import type { AnalysisResult, QuickLookupResult } from '../types';
+import {
+  translateService,
+  rapidLookupService,
+  analyzeSentenceService,
+  quickLookupService,
+  getNotebookDetailService
+} from '../services/geminiService';
+import type { AnalysisResult, QuickLookupResult, VideoNotebook } from '../types';
 import { ResultDisplay } from './ResultDisplay';
 import { QuickLookupDisplay } from './AiSharedComponents';
 
@@ -24,16 +41,22 @@ interface YoutubeStudyPageProps {
   playerRefExternal?: React.MutableRefObject<any>;
   isImmersive?: boolean;
   onImmersiveChange?: (immersive: boolean) => void;
+  notebookId?: number | null;
+  initialNotebookData?: VideoNotebook | null;
+  onBack?: () => void;
 }
 
-export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({ 
+export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   onTriggerAnalysis,
   onTriggerDictionary,
   isAiAssistantOpen,
   onToggleAi,
   playerRefExternal,
   isImmersive,
-  onImmersiveChange
+  onImmersiveChange,
+  notebookId,
+  initialNotebookData,
+  onBack
 }) => {
   // --- State ---
   // Column 1: Video
@@ -45,6 +68,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isYTApiReady, setIsYTApiReady] = useState(false);
+  const [isLoadingNotebook, setIsLoadingNotebook] = useState(false);
 
   // Column 2: Subtitles
   const [srtContent, setSrtContent] = useState('');
@@ -90,27 +114,71 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     const savedVideoId = localStorage.getItem('smash_english_video_id');
     const savedSrtContent = localStorage.getItem('smash_english_srt_content');
 
-    if (savedVideoUrl) setVideoUrl(savedVideoUrl);
-    if (savedVideoId) setVideoId(savedVideoId);
-    if (savedSrtContent) {
-      setSrtContent(savedSrtContent);
-      const parsed = parseSRT(savedSrtContent);
-      setSubtitles(optimizeSubtitles(parsed));
+    if (!notebookId) {
+      if (savedVideoUrl) setVideoUrl(savedVideoUrl);
+      if (savedVideoId) setVideoId(savedVideoId);
+      if (savedSrtContent) {
+        setSrtContent(savedSrtContent);
+        const parsed = parseSRT(savedSrtContent);
+        setSubtitles(optimizeSubtitles(parsed));
+      }
+    } else {
+      // For notebooks, try to load from cache first
+      const cachedSrt = localStorage.getItem(`smash_english_cached_srt_${notebookId}`);
+      if (cachedSrt) {
+        setSrtContent(cachedSrt);
+        const parsed = parseSRT(cachedSrt);
+        setSubtitles(optimizeSubtitles(parsed));
+      }
+
+      if (initialNotebookData) {
+        setVideoUrl(initialNotebookData.video_url);
+        if (initialNotebookData.video_id) setVideoId(initialNotebookData.video_id);
+      }
     }
-  }, []);
+  }, [notebookId, initialNotebookData]);
 
-  // Save state to localStorage
+  // Load specific notebook details (especially SRT)
   useEffect(() => {
-    if (videoUrl) localStorage.setItem('smash_english_video_url', videoUrl);
-  }, [videoUrl]);
+    if (notebookId) {
+      const fetchNotebook = async () => {
+        // Only show loading if we don't even have cached subtitles
+        if (subtitles.length === 0) setIsLoadingNotebook(true);
+        try {
+          const nb = await getNotebookDetailService(notebookId);
+          setVideoUrl(nb.video_url);
+          if (nb.video_id) setVideoId(nb.video_id);
+          if (nb.srt_content) {
+            // Update cache only if changed
+            if (nb.srt_content !== srtContent) {
+              setSrtContent(nb.srt_content);
+              const parsed = parseSRT(nb.srt_content);
+              setSubtitles(optimizeSubtitles(parsed));
+              localStorage.setItem(`smash_english_cached_srt_${notebookId}`, nb.srt_content);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load notebook:', error);
+        } finally {
+          setIsLoadingNotebook(false);
+        }
+      };
+      fetchNotebook();
+    }
+  }, [notebookId, srtContent, subtitles.length]);
+
+  // Save state to localStorage (only if NOT in notebook mode)
+  useEffect(() => {
+    if (videoUrl && !notebookId) localStorage.setItem('smash_english_video_url', videoUrl);
+  }, [videoUrl, notebookId]);
 
   useEffect(() => {
-    if (videoId) localStorage.setItem('smash_english_video_id', videoId);
-  }, [videoId]);
+    if (videoId && !notebookId) localStorage.setItem('smash_english_video_id', videoId);
+  }, [videoId, notebookId]);
 
   useEffect(() => {
-    if (srtContent) localStorage.setItem('smash_english_srt_content', srtContent);
-  }, [srtContent]);
+    if (srtContent && !notebookId) localStorage.setItem('smash_english_srt_content', srtContent);
+  }, [srtContent, notebookId]);
 
 
   // Load YouTube IFrame API
@@ -133,87 +201,117 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   // Initialize Player when videoId changes and API is ready
   const initializePlayer = useCallback(() => {
     if (!videoId || !isYTApiReady) return;
-    
-    if (playerRef.current) {
-      playerRef.current.loadVideoById(videoId);
-    } else {
-      const playerContainer = document.getElementById('youtube-player');
-      if (!playerContainer) return;
-      
-      new window.YT.Player('youtube-player', {
-        height: '100%',
-        width: '100%',
-        videoId: videoId,
-        playerVars: {
-          'playsinline': 1,
-          'modestbranding': 1,
-          'rel': 0
-        },
-        events: {
-          'onReady': (event: any) => {
-            playerRef.current = event.target;
-            setIsPlayerReady(true);
-          },
-          'onStateChange': (_event: any) => {
-            // Optional: Track state changes
-          }
-        }
-      });
+
+    const playerContainer = document.getElementById('youtube-player');
+    if (!playerContainer) return;
+
+    // If the container is an iframe, it means the YouTube API has already initialized it.
+    // If it's a div, it's a fresh element from React and we need to create a new player.
+    const isAlreadyInitialized = playerContainer.tagName === 'IFRAME';
+
+    if (playerRef.current && isAlreadyInitialized) {
+      try {
+        playerRef.current.loadVideoById(videoId);
+        return;
+      } catch (e) {
+        console.warn('Failed to load video on existing player, re-initializing...', e);
+      }
     }
-  }, [videoId, isYTApiReady]);
+
+    // Reset ready state
+    setIsPlayerReady(false);
+
+    // Destroy old instance if it exists but is no longer valid or we're re-initializing
+    if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+      try {
+        playerRef.current.destroy();
+      } catch (e) {
+        // Ignore errors during destruction
+      }
+    }
+
+    // Create new player
+    new window.YT.Player('youtube-player', {
+      height: '100%',
+      width: '100%',
+      videoId: videoId,
+      playerVars: {
+        'playsinline': 1,
+        'modestbranding': 1,
+        'rel': 0
+      },
+      events: {
+        'onReady': (event: any) => {
+          playerRef.current = event.target;
+          setIsPlayerReady(true);
+          
+          // Restore playback position
+          const posKey = notebookId ? `smash_english_pos_notebook_${notebookId}` : `smash_english_pos_video_${videoId}`;
+          const savedPos = localStorage.getItem(posKey);
+          if (savedPos) {
+            const time = parseFloat(savedPos);
+            if (!isNaN(time) && time > 0) {
+              // We use a small timeout to ensure video is loaded
+              setTimeout(() => {
+                event.target.seekTo(time, true);
+              }, 100);
+            }
+          }
+        },
+        'onStateChange': (_event: any) => {
+          // Optional: Track state changes
+        }
+      }
+    });
+  }, [videoId, isYTApiReady, playerRef]);
 
   useEffect(() => {
     initializePlayer();
   }, [initializePlayer]);
 
-  const handleResetVideo = () => {
-    if (window.confirm('确定要更换视频吗？当前的视频和字幕状态将被清除。')) {
+  // Cleanup player on unmount
+  useEffect(() => {
+    return () => {
+      // We don't necessarily want to set playerRef.current to null here 
+      // if it's shared externally, but the instance itself is dead.
+      // However, it's safer to clear it so consumers don't call dead methods.
       if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch (e) {
-          console.error('Error destroying player:', e);
+        if (typeof playerRef.current.destroy === 'function') {
+          try {
+            playerRef.current.destroy();
+          } catch (e) {}
         }
         playerRef.current = null;
       }
-      setVideoId(null);
-      setVideoUrl('');
-      setIsPlayerReady(false);
-      localStorage.removeItem('smash_english_video_url');
-      localStorage.removeItem('smash_english_video_id');
-      // optional: also clear SRT if needed
-      // setSubtitles([]);
-      // setSrtContent('');
-      // localStorage.removeItem('smash_english_srt_content');
-    }
-  };
-
-  const handleResetSubtitles = () => {
-    if (window.confirm('确定要清空当前字幕吗？这将允许您上传新的字幕文件。')) {
-      setSrtContent('');
-      setSubtitles([]);
-      localStorage.removeItem('smash_english_srt_content');
-      // Clear file input value if possible, though ref is local to render. 
-      // It will be reset on click anyway.
-    }
-  };
+    };
+  }, [playerRef]);
 
   // Sync active subtitle with video time (Optional polling)
   useEffect(() => {
     let interval: any;
-    if (isPlayerReady && subtitles.length > 0) {
+    if (isPlayerReady) {
       interval = setInterval(() => {
         const currentTime = playerRef.current?.getCurrentTime?.();
-        if (currentTime) {
-          const currentSub = subtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
-          if (currentSub && currentSub.id !== activeSubtitleId) {
-            setActiveSubtitleId(currentSub.id);
+        if (typeof currentTime === 'number') {
+          // 1. Sync Subtitle
+          if (subtitles.length > 0) {
+            const currentSub = subtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
+            if (currentSub && currentSub.id !== activeSubtitleId) {
+              setActiveSubtitleId(currentSub.id);
+            }
+          }
+
+          // 2. Save Position (every 1.5s to be efficient)
+          const posKey = notebookId ? `smash_english_pos_notebook_${notebookId}` : `smash_english_pos_video_${videoId}`;
+          // Only save if it's meaningful
+          if (currentTime > 1) {
+            localStorage.setItem(posKey, currentTime.toString());
           }
         }
-      }, 500);
+      }, 1000); // Polling every 1s for better responsiveness
     }
     return () => clearInterval(interval);
-  }, [isPlayerReady, subtitles, activeSubtitleId]);
+  }, [isPlayerReady, subtitles, activeSubtitleId, notebookId, videoId]);
 
   // Handle auto-resume when assistant closes in popup mode
   useEffect(() => {
@@ -250,7 +348,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
         activeElement.tagName === 'TEXTAREA' ||
         (activeElement as HTMLElement).isContentEditable
       );
-      
+
       if (isTyping) return;
 
       if (event.code === 'Space') {
@@ -258,7 +356,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
           event.preventDefault();
           const state = playerRef.current.getPlayerState();
           // YT.PlayerState.PLAYING is 1, YT.PlayerState.PAUSED is 2
-          if (state === 1) { 
+          if (state === 1) {
             playerRef.current.pauseVideo();
           } else {
             playerRef.current.playVideo();
@@ -334,12 +432,12 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
 
   const handleTranslate = async (sub: SubtitleItem) => {
     if (translatingIds.has(sub.id) || translations[sub.id]) return;
-    
+
     // Pause video when translating only if enabled
     if (isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
       playerRef.current.pauseVideo();
     }
-    
+
     setTranslatingIds(prev => new Set(prev).add(sub.id));
     try {
       const result = await translateService(sub.text);
@@ -361,7 +459,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const handleWordClick = async (word: string, context: string, e: React.MouseEvent) => {
     if (!isWordSearchEnabled && !isFastLookupEnabled) return;
     e.stopPropagation();
-    
+
     let wasPaused = false;
     if (isPauseOnClickEnabled && playerRef.current && isPlayerReady) {
       playerRef.current.pauseVideo();
@@ -370,6 +468,13 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
 
     const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
     if (!cleanWord) return;
+
+    // Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(cleanWord);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
 
     // If Inline AI is DISABLED or AI Assistant is already OPEN, send word lookup to sidebar.
     if ((!isInlineAiEnabled || isAiAssistantOpen) && isWordSearchEnabled && !isFastLookupEnabled && onTriggerDictionary) {
@@ -383,10 +488,12 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
 
       setIsBigTextLookupLoading(prev => ({ ...prev, [cacheKey]: true }));
       try {
-        const result = await quickLookupService(cleanWord, context);
-        setBigTextDictionaryResults(prev => ({ 
-          ...prev, 
-          [cacheKey]: { ...result, originalSentence: context } 
+        const currentTime = Math.floor(playerRef.current?.getCurrentTime() || 0);
+        const currentUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}&t=${currentTime}s` : window.location.href;
+        const result = await quickLookupService(cleanWord, context, currentUrl);
+        setBigTextDictionaryResults(prev => ({
+          ...prev,
+          [cacheKey]: { ...result, originalSentence: context, url: currentUrl }
         }));
         setBigTextResultOrder(prev => [
           { type: 'dictionary', key: cacheKey },
@@ -432,7 +539,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
 
         return (
           <React.Fragment key={idx}>
-            <span 
+            <span
               className={`hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-all text-gray-900 dark:text-gray-100 font-medium ${isFastLookupEnabled ? 'border-b border-dashed border-gray-400 dark:border-gray-600' : 'underline decoration-dotted decoration-gray-400 dark:decoration-gray-600 underline-offset-4'} active:bg-yellow-300 dark:active:bg-yellow-800`}
               onClick={(e) => handleWordClick(word, context, e)}
             >
@@ -459,13 +566,12 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const file = files[0];
+    const file = e.target.files?.[0];
+    if (file) {
       if (file.name.endsWith('.srt')) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-          const content = event.target?.result as string;
+        reader.onload = (ev) => {
+          const content = ev.target?.result as string;
           setSrtContent(content);
           const parsed = parseSRT(content);
           setSubtitles(optimizeSubtitles(parsed));
@@ -517,7 +623,8 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   };
 
   return (
-    <div className={`flex-1 flex flex-col lg:landscape:flex-row ${isImmersive ? 'gap-0' : 'gap-3 lg:landscape:gap-4'} overflow-hidden min-h-0`}>
+    <div className={`flex-1 flex flex-col lg:landscape:flex-row ${isImmersive ? 'gap-0' : 'gap-3 lg:landscape:gap-4'} overflow-hidden min-h-0 relative`}>
+      {/* 移除全屏阻塞加载遮罩 */}
       {/* Column 1: Video Player */}
       <div className={`flex-none lg:landscape:flex-[1.8] bg-white dark:bg-[#0d1117] ${isImmersive ? '' : 'lg:rounded-2xl shadow-sm lg:border'} border-b border-gray-200 dark:border-gray-800/60 flex flex-col transition-all duration-300 relative group`}>
         {/* Floating Integrated Controls */}
@@ -533,40 +640,6 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
 
             {isToolsOpen && (
               <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 p-1.5 sm:p-2 py-2 sm:py-3 flex flex-col gap-0.5 sm:gap-1 animate-in fade-in slide-in-from-top-2">
-                {/* 更换视频 */}
-                {videoId && (
-                  <>
-                    <button 
-                      onClick={() => {
-                        setIsToolsOpen(false);
-                        handleResetVideo();
-                      }}
-                      className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
-                    >
-                      <RefreshCw className="w-4 h-4 text-red-600 dark:text-red-400" />
-                      <span className="text-sm font-medium text-red-600 dark:text-red-400">更换视频</span>
-                    </button>
-                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
-                  </>
-                )}
-
-                {/* Re-upload SRT */}
-                {subtitles.length > 0 && (
-                  <>
-                    <button 
-                      onClick={() => {
-                        setIsToolsOpen(false);
-                        handleResetSubtitles();
-                      }}
-                      className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
-                    >
-                      <FileUp className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">重传字幕</span>
-                    </button>
-                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
-                  </>
-                )}
-                
                 {/* Search Mode */}
                 <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => {
                   if (!isWordSearchEnabled) {
@@ -628,6 +701,20 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                     <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isImmersive ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
+
+                {/* Back to Notebook List */}
+                {onBack && (
+                  <>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+                    <button 
+                      onClick={onBack}
+                      className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">退出学习</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -724,7 +811,13 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
           
           {!subtitles.length ? (
             <div className="h-full flex flex-col p-4 items-center justify-center overflow-y-auto">
-              <div className="w-full max-sm text-center">
+              {isLoadingNotebook ? (
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
+                  <p className="text-gray-500 dark:text-gray-400 text-sm animate-pulse">正在加载云端字幕...</p>
+                </div>
+              ) : (
+                <div className="w-full max-sm text-center">
                 <div 
                   className="mb-6 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-all rounded-xl bg-gray-50/50 dark:bg-gray-800/50 group"
                   onClick={() => fileInputRef.current?.click()}
@@ -754,7 +847,8 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                   value={srtContent}
                   onChange={handleSrtPaste}
                 />
-              </div>
+                </div>
+              )}
             </div>
           ) : isBigTextMode ? (
              <div className="h-full flex flex-col items-center p-4 sm:p-8 text-center bg-gray-50/30 dark:bg-black/20 overflow-y-auto">
