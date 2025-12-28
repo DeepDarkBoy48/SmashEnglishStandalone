@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Play, 
+  Pause,
   FileUp,
   Settings2,
   Loader2,
+  ChevronLeft,
   ChevronRight,
   Sparkles,
-  Languages
+  Languages,
+  Target,
+  Navigation
 } from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { parseSRT, optimizeSubtitles } from '../utils/srtParser';
@@ -66,6 +70,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isYTApiReady, setIsYTApiReady] = useState(false);
   const [isLoadingNotebook, setIsLoadingNotebook] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Column 2: Subtitles
   const [srtContent, setSrtContent] = useState('');
@@ -89,6 +94,12 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const [isBigTextLookupLoading, setIsBigTextLookupLoading] = useState<Record<string, boolean>>({});
   const [bigTextResultOrder, setBigTextResultOrder] = useState<{type: 'analysis' | 'dictionary', key: string | number}[]>([]);
   const [isInlineAiEnabled, setIsInlineAiEnabled] = useState(true);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [visibleRange, setVisibleRange] = useState({ startIndex: 0, endIndex: 0 });
+  const lastScrollIndexRef = useRef<number>(0);
+  const isManualJumpRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(false);
+  const activeSubtitleIdRef = useRef<number | null>(null);
 
   const toolsRef = useRef<HTMLDivElement>(null);
 
@@ -255,8 +266,8 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
             }
           }
         },
-        'onStateChange': (_event: any) => {
-          // Optional: Track state changes
+        'onStateChange': (event: any) => {
+          setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
         }
       }
     });
@@ -283,32 +294,47 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     };
   }, [playerRef]);
 
-  // Sync active subtitle with video time (Optional polling)
+  // Sync active subtitle ID ref
+  useEffect(() => {
+    activeSubtitleIdRef.current = activeSubtitleId;
+  }, [activeSubtitleId]);
+
+  // Sync active subtitle with video time
   useEffect(() => {
     let interval: any;
     if (isPlayerReady) {
       interval = setInterval(() => {
+        // If we just manually jumped, don't let polling override the highlight until the player settles
+        if (isManualJumpRef.current) return;
+
         const currentTime = playerRef.current?.getCurrentTime?.();
         if (typeof currentTime === 'number') {
-          // 1. Sync Subtitle
           if (subtitles.length > 0) {
-            const currentSub = subtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
-            if (currentSub && currentSub.id !== activeSubtitleId) {
-              setActiveSubtitleId(currentSub.id);
+            const currentId = activeSubtitleIdRef.current;
+            const currentSub = currentId !== null ? subtitles.find(s => s.id === currentId) : null;
+            
+            // Optimization: If current time is still within the current subtitle (with a tiny grace buffer), stay there
+            if (currentSub && currentTime >= currentSub.startTime - 0.1 && currentTime <= currentSub.endTime + 0.1) {
+              return;
+            }
+
+            // Find match
+            const newSub = subtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
+            if (newSub && newSub.id !== currentId) {
+              setActiveSubtitleId(newSub.id);
             }
           }
 
-          // 2. Save Position (every 1.5s to be efficient)
-          const posKey = notebookId ? `smash_english_pos_notebook_${notebookId}` : `smash_english_pos_video_${videoId}`;
-          // Only save if it's meaningful
-          if (currentTime > 1) {
+          // Save Position (every ~1s is enough, polling is at 200ms)
+          if (currentTime > 1 && Math.floor(currentTime * 5) % 5 === 0) {
+            const posKey = notebookId ? `smash_english_pos_notebook_${notebookId}` : `smash_english_pos_video_${videoId}`;
             localStorage.setItem(posKey, currentTime.toString());
           }
         }
-      }, 1000); // Polling every 1s for better responsiveness
+      }, 200);
     }
     return () => clearInterval(interval);
-  }, [isPlayerReady, subtitles, activeSubtitleId, notebookId, videoId]);
+  }, [isPlayerReady, subtitles, notebookId, videoId]);
 
   // Handle auto-resume when assistant closes in popup mode
   useEffect(() => {
@@ -321,19 +347,52 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     }
   }, [isAiAssistantOpen, isPauseOnClickEnabled, isPlayerReady]);
 
-  // Scroll to active subtitle
-  useEffect(() => {
+  const scrollToActiveSubtitle = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     if (activeSubtitleId && virtuosoRef.current && subtitles.length > 0) {
       const index = subtitles.findIndex(s => s.id === activeSubtitleId);
       if (index !== -1) {
+        isProgrammaticScrollRef.current = true;
         virtuosoRef.current.scrollToIndex({
           index,
-          align: 'center',
-          behavior: 'smooth'
+          align: 'start',
+          behavior
         });
+        setIsAutoScrollEnabled(true);
+        // Reset flag after scroll settles
+        setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+        }, 500);
       }
     }
   }, [activeSubtitleId, subtitles]);
+
+  // Scroll to active subtitle
+  useEffect(() => {
+    if (isAutoScrollEnabled && activeSubtitleId && virtuosoRef.current && subtitles.length > 0) {
+      const index = subtitles.findIndex(s => s.id === activeSubtitleId);
+      if (index !== -1) {
+        const isOutOfRange = index < visibleRange.startIndex || index >= (visibleRange.endIndex - 1);
+        
+        if (isOutOfRange) {
+          const distance = Math.abs(index - lastScrollIndexRef.current);
+          const pageSize = Math.max(visibleRange.endIndex - visibleRange.startIndex, 1) || 10;
+          const behavior = distance > pageSize ? 'auto' : 'smooth';
+
+          isProgrammaticScrollRef.current = true;
+          virtuosoRef.current.scrollToIndex({
+            index,
+            align: 'start',
+            behavior
+          });
+          // Reset flag after scroll settles
+          setTimeout(() => {
+            isProgrammaticScrollRef.current = false;
+          }, 500);
+        }
+        lastScrollIndexRef.current = index;
+      }
+    }
+  }, [activeSubtitleId, subtitles, visibleRange.startIndex, visibleRange.endIndex, isAutoScrollEnabled]);
 
   // Keyboard shortcuts for video control
   useEffect(() => {
@@ -359,12 +418,42 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
             playerRef.current.playVideo();
           }
         }
+      } else if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+        if (subtitles.length > 0 && playerRef.current && isPlayerReady) {
+          event.preventDefault();
+          const currentIndex = activeSubtitleId !== null 
+            ? subtitles.findIndex(s => s.id === activeSubtitleId) 
+            : -1;
+          
+          let targetIndex = -1;
+          if (event.code === 'ArrowLeft') {
+            targetIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+          } else {
+            targetIndex = currentIndex < subtitles.length - 1 ? currentIndex + 1 : subtitles.length - 1;
+          }
+
+          if (targetIndex !== -1 && targetIndex !== currentIndex) {
+            const targetSub = subtitles[targetIndex];
+            handleJumpToTime(targetSub.startTime, targetSub.id);
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlayerReady, playerRef]);
+  }, [isPlayerReady, playerRef, subtitles, activeSubtitleId]);
+
+  const handleTogglePlay = () => {
+    if (playerRef.current && isPlayerReady) {
+      const state = playerRef.current.getPlayerState();
+      if (state === window.YT.PlayerState.PLAYING) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.playVideo();
+      }
+    }
+  };
 
 
   // --- Handlers ---
@@ -388,10 +477,24 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
     setSubtitles(optimizeSubtitles(parsed));
   };
 
-  const handleJumpToTime = (startTime: number) => {
+  const handleJumpToTime = (startTime: number, subId?: number) => {
     if (playerRef.current && isPlayerReady) {
+      if (subId !== undefined) {
+        setActiveSubtitleId(subId);
+        // When manually jumping to a subtitle, we should re-enable auto scroll
+        setIsAutoScrollEnabled(true);
+      }
+      
+      // Set manual jump flag to prevent polling from fighting with the manual seek
+      isManualJumpRef.current = true;
+      
       playerRef.current.seekTo(startTime, true);
       playerRef.current.playVideo();
+      
+      // Release the lock after a short delay
+      setTimeout(() => {
+        isManualJumpRef.current = false;
+      }, 400);
     }
   };
 
@@ -645,8 +748,8 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                   setIsWordSearchEnabled(!isWordSearchEnabled);
                 }}>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">查词模式</span>
-                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isWordSearchEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isWordSearchEnabled ? 'translate-x-5' : ''}`} />
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isWordSearchEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isWordSearchEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isWordSearchEnabled ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
 
@@ -658,8 +761,8 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                   setIsFastLookupEnabled(!isFastLookupEnabled);
                 }}>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">极速查词</span>
-                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isFastLookupEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isFastLookupEnabled ? 'translate-x-5' : ''}`} />
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isFastLookupEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isFastLookupEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isFastLookupEnabled ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
 
@@ -668,26 +771,48 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                 {/* Click Pause */}
                 <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsPauseOnClickEnabled(!isPauseOnClickEnabled)}>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">点击暂停</span>
-                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isPauseOnClickEnabled ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isPauseOnClickEnabled ? 'translate-x-5' : ''}`} />
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isPauseOnClickEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isPauseOnClickEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isPauseOnClickEnabled ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
 
                 {/* Big Text Mode */}
                 <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsBigTextMode(!isBigTextMode)}>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">大字模式</span>
-                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isBigTextMode ? 'bg-purple-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isBigTextMode ? 'translate-x-5' : ''}`} />
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isBigTextMode ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isBigTextMode ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isBigTextMode ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
 
                 {/* Inline AI Cards Toggle */}
                 <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsInlineAiEnabled(!isInlineAiEnabled)}>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">内联 AI 卡片</span>
-                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isInlineAiEnabled ? 'bg-pink-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isInlineAiEnabled ? 'translate-x-5' : ''}`} />
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isInlineAiEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isInlineAiEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isInlineAiEnabled ? 'translate-x-5' : ''}`} />
                   </div>
                 </div>
+
+                {/* Auto Scroll */}
+                <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">自动跟读</span>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative ${isAutoScrollEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 ${isAutoScrollEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isAutoScrollEnabled ? 'translate-x-5' : ''}`} />
+                  </div>
+                </div>
+
+                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
+
+                {/* Relocate to current time */}
+                <button 
+                  onClick={() => {
+                    scrollToActiveSubtitle('auto');
+                    setIsToolsOpen(false);
+                  }}
+                  className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left w-full"
+                >
+                  <Navigation className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">定位当前时间</span>
+                </button>
 
                 <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />
 
@@ -810,6 +935,24 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
             })()
           )}
           
+          {(() => {
+            const activeIndex = subtitles.findIndex(s => s.id === activeSubtitleId);
+            const isActiveVisible = activeIndex !== -1 && activeIndex >= visibleRange.startIndex && activeIndex < visibleRange.endIndex;
+            
+            if (!isAutoScrollEnabled && !isActiveVisible && subtitles.length > 0 && activeSubtitleId) {
+              return (
+                <button
+                  onClick={() => scrollToActiveSubtitle()}
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300 active:scale-95 transition-all text-sm font-bold"
+                >
+                  <Target className="w-4 h-4" />
+                  <span>回正</span>
+                </button>
+              );
+            }
+            return null;
+          })()}
+
           {!subtitles.length ? (
             <div className="h-full flex flex-col p-4 items-center justify-center overflow-y-auto">
               {isLoadingNotebook ? (
@@ -852,106 +995,158 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
               )}
             </div>
           ) : isBigTextMode ? (
-             <div className="h-full flex flex-col items-center p-4 sm:p-8 text-center bg-gray-50/30 dark:bg-black/20 overflow-y-auto">
-                <div className="flex-1" />
-                {activeSubtitleId ? (
-                   (() => {
-                      const activeSub = subtitles.find(s => s.id === activeSubtitleId);
-                      if (!activeSub) return <div className="text-gray-400">Waiting for subtitle...</div>;
-                      return (
-                        <div className="flex flex-col gap-4 sm:gap-6 animate-fade-in w-full max-w-4xl py-4 sm:py-8">
-                           <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 dark:text-gray-100 leading-tight tracking-wide">
-                              {renderSubtitleText(activeSub.text, activeSub.text)}
-                           </p>
-                           {isWordSearchEnabled && (
-                             <div className="text-sm text-gray-500 dark:text-gray-400 mt-4 font-medium flex items-center justify-center gap-2">
-                               <Sparkles className="w-4 h-4" />
-                               <span>点击单词查询释义</span>
-                             </div>
-                           )}
-                           <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-2 sm:mt-4">
-                             <button 
-                               onClick={() => handleAnalyze(activeSub)}
-                               className="px-6 py-2.5 bg-pink-100 hover:bg-pink-200 text-pink-700 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 dark:text-pink-300 rounded-full font-medium transition-colors flex items-center gap-2"
-                             >
-                                <Sparkles className="w-4 h-4" />
-                                <span>句法分析</span>
-                             </button>
-                             <button 
-                               onClick={() => handleTranslate(activeSub)}
-                               className={`px-6 py-2.5 rounded-full font-medium transition-colors flex items-center gap-2 
-                                 ${translations[activeSub.id] 
-                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
-                                   : 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'} 
-                                 ${translatingIds.has(activeSub.id) ? 'animate-pulse opacity-70' : ''}`}
-                               disabled={translatingIds.has(activeSub.id) || !!translations[activeSub.id]}
-                             >
-                                <Languages className="w-4 h-4" />
-                                <span>{translatingIds.has(activeSub.id) ? '翻译中...' : translations[activeSub.id] ? '已翻译' : '极速翻译'}</span>
-                             </button>
-                           </div>
-                           {translations[activeSub.id] && (
-                             <div className="mt-4 sm:mt-8 p-4 sm:p-6 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700/50 animate-fade-in shadow-sm text-left">
-                               <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
-                                 {translations[activeSub.id]}
-                               </p>
-                             </div>
-                           )}
+             <div className="h-full flex flex-col items-center bg-gray-50/30 dark:bg-black/20 relative">
+                {activeSubtitleId && subtitles.length > 0 && (() => {
+                    const currentIndex = subtitles.findIndex(s => s.id === activeSubtitleId);
+                    const handlePrev = () => {
+                      if (currentIndex > 0) {
+                        const prevSub = subtitles[currentIndex - 1];
+                        handleJumpToTime(prevSub.startTime, prevSub.id);
+                      }
+                    };
+                    const handleNext = () => {
+                      if (currentIndex < subtitles.length - 1) {
+                        const nextSub = subtitles[currentIndex + 1];
+                        handleJumpToTime(nextSub.startTime, nextSub.id);
+                      }
+                    };
+                    return (
+                      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-50 pointer-events-none">
+                        <button 
+                          onClick={handlePrev}
+                          disabled={currentIndex <= 0}
+                          className="pointer-events-auto p-2 rounded-xl hover:bg-white/80 dark:hover:bg-gray-800/80 text-gray-400 hover:text-black dark:hover:text-white disabled:opacity-0 disabled:pointer-events-none transition-all hover:scale-110 active:scale-95 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-700 bg-white/40 dark:bg-black/20 backdrop-blur-sm"
+                          title="上一句"
+                        >
+                          <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+                        </button>
 
-                           {/* Ordered Results (Analysis & Dictionary) */}
-                           <div className="mt-6 flex flex-col gap-6 w-full">
-                              {/* Show loading states first as they are transient */}
-                              {isBigTextAnalyzing[activeSub.id] && (
-                                <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-pink-100 dark:border-pink-900/30 animate-pulse flex flex-col items-center gap-3">
-                                  <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
-                                  <p className="text-gray-500 text-sm font-medium">正在进行深度句法分析...</p>
-                                </div>
-                              )}
-                              {Object.entries(isBigTextLookupLoading).map(([key, isLoading]) => {
-                                if (isLoading && key.endsWith(`-${activeSub.text}`)) {
-                                  const word = key.split('-')[0];
-                                  return (
-                                    <div key={key} className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-3 animate-pulse">
-                                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                      <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">正在查询 "{word}"...</span>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })}
+                        <button 
+                          onClick={handleTogglePlay}
+                          className="pointer-events-auto p-2 sm:p-3 rounded-xl hover:bg-white/80 dark:hover:bg-gray-800/80 text-black dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-all hover:scale-110 active:scale-95 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-700 bg-white/40 dark:bg-black/20 backdrop-blur-sm"
+                          title={isPlaying ? "暂停" : "播放"}
+                        >
+                          {isPlaying ? (
+                            <Pause className="w-6 h-6 sm:w-8 sm:h-8 fill-current" />
+                          ) : (
+                            <Play className="w-6 h-6 sm:w-8 sm:h-8 fill-current" />
+                          )}
+                        </button>
 
-                              {/* Ordered content: latest on top */}
-                              {bigTextResultOrder.map((item) => {
-                                if (item.type === 'analysis' && item.key === activeSub.id) {
-                                  const result = bigTextAnalysisResults[item.key as number];
-                                  if (!result) return null;
-                                  return (
-                                    <div key={`analysis-${item.key}`} className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                      <ResultDisplay result={result} compact={true} />
-                                    </div>
-                                  );
-                                }
-                                if (item.type === 'dictionary' && typeof item.key === 'string' && item.key.endsWith(`-${activeSub.text}`)) {
-                                  const result = bigTextDictionaryResults[item.key];
-                                  if (!result) return null;
-                                  return (
-                                    <div key={`dict-${item.key}`} className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                      <QuickLookupDisplay result={result} hideContext={true} />
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })}
-                           </div>
-                        </div>
-                      );
-                   })()
-                ) : (
-                  <div className="text-xl text-gray-400 dark:text-gray-600 font-medium">
-                    等待播放...
-                  </div>
-                )}
-                <div className="flex-1" />
+                        <button 
+                          onClick={handleNext}
+                          disabled={currentIndex >= subtitles.length - 1}
+                          className="pointer-events-auto p-2 rounded-xl hover:bg-white/80 dark:hover:bg-gray-800/80 text-gray-400 hover:text-black dark:hover:text-white disabled:opacity-0 disabled:pointer-events-none transition-all hover:scale-110 active:scale-95 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-700 bg-white/40 dark:bg-black/20 backdrop-blur-sm"
+                          title="下一句"
+                        >
+                          <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
+                        </button>
+                      </div>
+                    );
+                })()}
+
+                <div className="flex-1 w-full overflow-y-auto p-4 sm:p-8 flex flex-col items-center text-center">
+                  <div className="flex-1" />
+                  {activeSubtitleId ? (
+                    (() => {
+                        const activeSub = subtitles.find(s => s.id === activeSubtitleId);
+                        if (!activeSub) return <div className="text-gray-400">Waiting for subtitle...</div>;
+                        
+                        return (
+                          <div className="flex flex-col gap-4 sm:gap-6 animate-fade-in w-full max-w-4xl py-4 sm:py-8">
+                             <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 dark:text-gray-100 leading-tight tracking-wide px-10 sm:px-16">
+                                {renderSubtitleText(activeSub.text, activeSub.text)}
+                             </p>
+                             {isWordSearchEnabled && (
+                               <div className="text-sm text-gray-500 dark:text-gray-400 mt-4 font-medium flex items-center justify-center gap-2">
+                                 <Sparkles className="w-4 h-4" />
+                                 <span>点击单词查询释义</span>
+                               </div>
+                             )}
+                             <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-2 sm:mt-4">
+                               <button 
+                                 onClick={() => handleAnalyze(activeSub)}
+                                 className="px-6 py-2.5 bg-pink-100 hover:bg-pink-200 text-pink-700 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 dark:text-pink-300 rounded-full font-medium transition-colors flex items-center gap-2"
+                               >
+                                  <Sparkles className="w-4 h-4" />
+                                  <span>句法分析</span>
+                               </button>
+                               <button 
+                                 onClick={() => handleTranslate(activeSub)}
+                                 className={`px-6 py-2.5 rounded-full font-medium transition-colors flex items-center gap-2 
+                                   ${translations[activeSub.id] 
+                                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
+                                     : 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'} 
+                                   ${translatingIds.has(activeSub.id) ? 'animate-pulse opacity-70' : ''}`}
+                                 disabled={translatingIds.has(activeSub.id) || !!translations[activeSub.id]}
+                               >
+                                  <Languages className="w-4 h-4" />
+                                  <span>{translatingIds.has(activeSub.id) ? '翻译中...' : translations[activeSub.id] ? '已翻译' : '极速翻译'}</span>
+                               </button>
+                             </div>
+                             {translations[activeSub.id] && (
+                               <div className="mt-4 sm:mt-8 p-4 sm:p-6 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700/50 animate-fade-in shadow-sm text-left">
+                                 <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-900 dark:text-gray-100 font-medium leading-relaxed">
+                                   {translations[activeSub.id]}
+                                 </p>
+                               </div>
+                             )}
+  
+                             {/* Ordered Results (Analysis & Dictionary) */}
+                             <div className="mt-6 flex flex-col gap-6 w-full">
+                                {/* Show loading states first as they are transient */}
+                                {isBigTextAnalyzing[activeSub.id] && (
+                                  <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-pink-100 dark:border-pink-900/30 animate-pulse flex flex-col items-center gap-3">
+                                    <Loader2 className="w-8 h-8 animate-spin text-pink-500" />
+                                    <p className="text-gray-500 text-sm font-medium">正在进行深度句法分析...</p>
+                                  </div>
+                                )}
+                                {Object.entries(isBigTextLookupLoading).map(([key, isLoading]) => {
+                                  if (isLoading && key.endsWith(`-${activeSub.text}`)) {
+                                    const word = key.split('-')[0];
+                                    return (
+                                      <div key={key} className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-3 animate-pulse">
+                                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                        <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">正在查询 "{word}"...</span>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })}
+  
+                                {/* Ordered content: latest on top */}
+                                {bigTextResultOrder.map((item) => {
+                                  if (item.type === 'analysis' && item.key === activeSub.id) {
+                                    const result = bigTextAnalysisResults[item.key as number];
+                                    if (!result) return null;
+                                    return (
+                                      <div key={`analysis-${item.key}`} className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                        <ResultDisplay result={result} compact={true} />
+                                      </div>
+                                    );
+                                  }
+                                  if (item.type === 'dictionary' && typeof item.key === 'string' && item.key.endsWith(`-${activeSub.text}`)) {
+                                    const result = bigTextDictionaryResults[item.key];
+                                    if (!result) return null;
+                                    return (
+                                      <div key={`dict-${item.key}`} className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <QuickLookupDisplay result={result} hideContext={true} />
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })}
+                             </div>
+                          </div>
+                        );
+                    })()
+                  ) : (
+                    <div className="text-xl text-gray-400 dark:text-gray-600 font-medium">
+                      等待播放...
+                    </div>
+                  )}
+                  <div className="flex-1" />
+                </div>
              </div>
           ) : (
             <Virtuoso
@@ -959,17 +1154,30 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
               className="pb-[env(safe-area-inset-bottom)]"
               data={subtitles}
               ref={virtuosoRef}
+              rangeChanged={setVisibleRange}
+              onScroll={() => {
+                if (isAutoScrollEnabled) {
+                  // If user manually scrolls more than a tiny bit, disable auto-scroll
+                  // This is a bit tricky with logic but we'll try to detect direct user interaction
+                }
+              }}
+              isScrolling={(scrolling) => {
+                // When user is actively scrolling (not programmatic), disable auto tracking
+                if (scrolling && isAutoScrollEnabled && !isProgrammaticScrollRef.current) {
+                  setIsAutoScrollEnabled(false);
+                }
+              }}
               itemContent={(_index, sub) => (
                 <div 
                   id={`subtitle-${sub.id}`} 
-                  className={`group relative p-2 sm:p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b border-gray-100 dark:border-gray-800/60 ${activeSubtitleId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 pl-1.5 sm:pl-2.5' : 'pl-2 sm:pl-3'}`}
+                  className={`group relative p-2 sm:p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b border-gray-100 dark:border-gray-800/60 ${activeSubtitleId === sub.id ? 'bg-gray-50 dark:bg-gray-800/50 border-l-4 border-l-black dark:border-l-white pl-1.5 sm:pl-2.5' : 'pl-2 sm:pl-3'}`}
                 >
                   <div className="flex flex-col gap-2 min-w-0 pr-2">
                     <p className="text-sm sm:text-base text-gray-700 dark:text-gray-200 leading-relaxed select-text group/text relative">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleJumpToTime(sub.startTime);
+                          handleJumpToTime(sub.startTime, sub.id);
                         }}
                         className="inline-flex items-center gap-1.5 px-2 py-0.5 mr-2 bg-blue-100/50 hover:bg-blue-200/70 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-md transition-all border border-blue-200/50 dark:border-blue-700/50 align-baseline -translate-y-[1px] hover:scale-105 active:scale-95 shadow-sm"
                         title="点击跳转播放"
