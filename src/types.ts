@@ -97,6 +97,13 @@ export type ModelLevel = 'mini' | 'quick' | 'deep';
 // --- Page Mode ---
 export type PageMode = 'writing' | 'reading';  // 写作纠错 | 文章精读
 
+export interface OtherMeaning {
+  meaning: string;
+  partOfSpeech: string;
+  example: string;
+}
+
+
 // --- Quick Lookup Result ---
 export interface QuickLookupResult {
   word: string;
@@ -104,9 +111,11 @@ export interface QuickLookupResult {
   partOfSpeech: string;    // 词性缩写
   grammarRole: string;     // 语法角色
   explanation: string;     // 解释为什么是这个意思
+  otherMeanings?: OtherMeaning[]; // 其他常见释义
   originalSentence?: string; // 原句内容
   url?: string;             // 原始链接
 }
+
 
 // --- Rapid Lookup (Ultra Fast) ---
 export interface RapidLookupResult {

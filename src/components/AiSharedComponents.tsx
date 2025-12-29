@@ -117,6 +117,32 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
           </p>
         </div>
       </div>
+
+      {/* 其他释义 */}
+      {result.otherMeanings && result.otherMeanings.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-blue-100 dark:border-blue-900/30">
+          <div className="flex items-center gap-1.5 mb-2.5 text-gray-500 dark:text-gray-400">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500/80 dark:text-blue-400/80">其他常见释义 & 例句</span>
+          </div>
+          <div className="space-y-3">
+            {result.otherMeanings.map((m: any, idx: number) => (
+              <div key={idx} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{m.meaning}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">({m.partOfSpeech})</span>
+                </div>
+                {m.example && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 italic line-clamp-2 pl-2 border-l border-gray-200 dark:border-gray-700">
+                    "{m.example}"
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
+
   );
 };
