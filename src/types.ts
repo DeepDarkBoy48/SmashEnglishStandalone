@@ -146,6 +146,14 @@ export interface SavedWord {
   data: any; // QuickLookupResult data
   created_at?: string;
   note_id?: number;
+  // FSRS fields
+  stability: number;
+  difficulty: number;
+  elapsed_days: number;
+  scheduled_days: number;
+  last_review?: string;
+  reps: number;
+  state: number;
 }
 
 export interface SavedWordsResponse {
@@ -171,6 +179,36 @@ export interface NoteDetailResponse {
   words: SavedWord[];
 }
 
+export interface VideoNotebookUpdate {
+  title?: string;
+  video_url?: string;
+  video_id?: string | null;
+  srt_content?: string;
+  thumbnail_url?: string | null;
+}
+
+// --- FSRS Review Interface ---
+export interface ReviewArticle {
+  id?: number;
+  title: string;
+  content: string;
+  article_type: string;
+  words_json: number[];
+  is_completed: boolean;
+  created_at?: string;
+}
+
+export interface TodayReviewResponse {
+  article: ReviewArticle;
+  words: SavedWord[];
+  is_new_article: boolean;
+}
+
+export interface FSRSFeedbackRequest {
+  word_id: number;
+  rating: number; // 1: Again, 2: Good, 3: Easy
+}
+
 export interface VideoNotebook {
   id: number;
   title: string;
@@ -184,4 +222,29 @@ export interface VideoNotebook {
 
 export interface VideoNotebookListResponse {
   notebooks: VideoNotebook[];
+}
+
+export interface ReadingNotebook {
+  id: number;
+  title: string;
+  content: string | null;
+  source_url: string | null;
+  cover_image_url: string | null;
+  description: string | null;
+  word_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReadingNotebookListResponse {
+  notebooks: ReadingNotebook[];
+}
+
+export interface ReadingNotebookUpdate {
+  title?: string;
+  content?: string;
+  source_url?: string | null;
+  cover_image_url?: string | null;
+  description?: string | null;
+  word_count?: number;
 }

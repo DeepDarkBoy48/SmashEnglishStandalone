@@ -12,7 +12,12 @@ import type {
   DailyNotesResponse, 
   NoteDetailResponse,
   VideoNotebook,
-  VideoNotebookListResponse
+  VideoNotebookListResponse,
+  ReadingNotebook,
+  ReadingNotebookListResponse,
+  ReadingNotebookUpdate,
+  TodayReviewResponse,
+  FSRSFeedbackRequest
 } from "../types";
 
 // --- Public Services ---
@@ -108,3 +113,51 @@ export const updateNotebookService = (notebookId: number, data: Partial<{
 export const deleteNotebookService = (notebookId: number): Promise<any> => {
   return request.delete(`/fastapi/notebooks/${notebookId}`);
 };
+
+// --- Reading Notebook Services ---
+
+export const listReadingNotebooksService = (): Promise<ReadingNotebookListResponse> => {
+  return request.get('/fastapi/reading-notebooks') as Promise<ReadingNotebookListResponse>;
+};
+
+export const getReadingNotebookDetailService = (notebookId: number): Promise<ReadingNotebook> => {
+  return request.get(`/fastapi/reading-notebooks/${notebookId}`) as Promise<ReadingNotebook>;
+};
+
+export const createReadingNotebookService = (data: {
+  title: string;
+  content: string;
+  source_url?: string | null;
+  cover_image_url?: string | null;
+  description?: string | null;
+  word_count?: number;
+}): Promise<ReadingNotebook> => {
+  return request.post('/fastapi/reading-notebooks', data) as Promise<ReadingNotebook>;
+};
+
+export const updateReadingNotebookService = (notebookId: number, data: ReadingNotebookUpdate): Promise<ReadingNotebook> => {
+  return request.put(`/fastapi/reading-notebooks/${notebookId}`, data) as Promise<ReadingNotebook>;
+};
+
+export const deleteReadingNotebookService = (notebookId: number): Promise<any> => {
+  return request.delete(`/fastapi/reading-notebooks/${notebookId}`);
+};
+
+// --- FSRS Review Services ---
+
+export const getTodayReviewService = (): Promise<TodayReviewResponse> => {
+  return request.get('/fastapi/review/today') as Promise<TodayReviewResponse>;
+};
+
+export const getReviewPromptService = (): Promise<{ prompt: string }> => {
+  return request.get('/fastapi/review/prompt') as Promise<{ prompt: string }>;
+};
+
+export const importReviewArticleService = (data: { title: string; content: string; article_type: string; words_ids: number[] }): Promise<any> => {
+  return request.post('/fastapi/review/import', data);
+};
+
+export const submitReviewFeedbackService = (data: FSRSFeedbackRequest): Promise<any> => {
+  return request.post('/fastapi/review/feedback', data);
+};
+

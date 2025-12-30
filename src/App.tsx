@@ -5,12 +5,14 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { DictionaryPage } from './components/DictionaryPage';
 import { WritingPage } from './components/WritingPage';
 import { SavedWordsPage } from './components/SavedWordsPage';
+import { IntensiveReadingPage } from './components/IntensiveReadingPage';
 
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
 import { VideoNotebookPage } from './components/VideoNotebookPage';
+import { ReadingNotebookPage } from './components/ReadingNotebookPage';
 import { analyzeSentenceService, quickLookupService } from './services/geminiService';
-import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread, Message, VideoNotebook } from './types';
+import type { AnalysisResult, DictionaryResult, WritingResult, QuickLookupResult, Thread, Message, VideoNotebook, ReadingNotebook } from './types';
 import { ThemeProvider } from './components/ThemeContext';
 import { Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 
@@ -35,7 +37,30 @@ const DEMO_RESULT: AnalysisResult = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words'>('analyzer');
+  // Initial routing helper
+  const getInitialRoute = () => {
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const word = params.get('word');
+
+    if (path === '/intensive-reading' || path.startsWith('/intensive-reading')) {
+      return { tab: 'reading' as const, id: id ? parseInt(id) : null, word: word };
+    } else if (path === '/video-study' || path.startsWith('/video-study')) {
+      return { tab: 'youtube' as const, id: id ? parseInt(id) : null };
+    } else if (path === '/dictionary') {
+      return { tab: 'dictionary' as const, id: null };
+    } else if (path === '/writing') {
+      return { tab: 'writing' as const, id: null };
+    } else if (path === '/saved-words') {
+      return { tab: 'saved-words' as const, id: null };
+    }
+    return { tab: 'analyzer' as const, id: null };
+  };
+
+  const initialRoute = getInitialRoute();
+
+  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading'>(initialRoute.tab);
 
   // Analyzer State - 使用预加载的示例数据作为初始值
   const [isAnalyzerLoading, setIsAnalyzerLoading] = useState(false);
@@ -61,7 +86,16 @@ const App: React.FC = () => {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   // Video Notebook State
-  const [selectedNotebook, setSelectedNotebook] = useState<VideoNotebook | null>(null);
+  const [selectedNotebook, setSelectedNotebook] = useState<VideoNotebook | null>(
+    initialRoute.tab === 'youtube' && initialRoute.id ? { id: initialRoute.id } as any : null
+  );
+
+  // Reading Notebook State
+  const [selectedReadingNotebook, setSelectedReadingNotebook] = useState<ReadingNotebook | null>(
+    initialRoute.tab === 'reading' && initialRoute.id ? { id: initialRoute.id } as any : null
+  );
+
+  const [highlightedWord, setHighlightedWord] = useState<string | null>(initialRoute.word || null);
 
   // Helper to get active thread
   const activeThread = threads.find(t => t.id === activeThreadId) || null;
@@ -117,6 +151,77 @@ const App: React.FC = () => {
       setThreads(prev => [newThread, ...prev]);
     }
   }, [assistantContextContent, contextType]);
+
+  // Basic Routing Logic
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const word = params.get('word');
+
+      if (path === '/intensive-reading' || path.startsWith('/intensive-reading')) {
+        setActiveTab('reading');
+        if (id) {
+          setSelectedReadingNotebook({ id: parseInt(id) } as any);
+        }
+        if (word) {
+           setHighlightedWord(word);
+        }
+      } else if (path === '/video-study' || path.startsWith('/video-study')) {
+        setActiveTab('youtube');
+        if (id) {
+          setSelectedNotebook({ id: parseInt(id) } as any);
+        }
+      } else if (path === '/dictionary') {
+        setActiveTab('dictionary');
+      } else if (path === '/writing') {
+        setActiveTab('writing');
+      } else if (path === '/saved-words') {
+        setActiveTab('saved-words');
+      } else {
+        setActiveTab('analyzer');
+      }
+    };
+
+    handleUrlChange();
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  // Update URL when state changes
+  useEffect(() => {
+    let path = '/';
+    const params = new URLSearchParams();
+
+    if (activeTab === 'reading') {
+      path = '/intensive-reading';
+      if (selectedReadingNotebook?.id) {
+        params.set('id', selectedReadingNotebook.id.toString());
+      }
+      if (highlightedWord) {
+        params.set('word', highlightedWord);
+      }
+    } else if (activeTab === 'youtube') {
+      path = '/video-study';
+      if (selectedNotebook?.id) {
+        params.set('id', selectedNotebook.id.toString());
+      }
+    } else if (activeTab === 'dictionary') {
+      path = '/dictionary';
+    } else if (activeTab === 'writing') {
+      path = '/writing';
+    } else if (activeTab === 'saved-words') {
+      path = '/saved-words';
+    }
+
+    const queryString = params.toString();
+    const newUrl = `${path}${queryString ? '?' + queryString : ''}`;
+    
+    if (window.location.pathname + window.location.search !== newUrl) {
+      window.history.pushState({}, '', newUrl);
+    }
+  }, [activeTab, selectedNotebook?.id, selectedReadingNotebook?.id]);
 
   // Handle tab changes to "clear context" for the AI assistant
   useEffect(() => {
@@ -315,8 +420,8 @@ const App: React.FC = () => {
   // Dynamic container padding based on active tab
   const getContainerPadding = () => {
     if (isImmersive) return 'p-0';
-    if (activeTab === 'youtube') {
-      return 'xl:px-4 xl:py-2 px-0 py-0'; // Minimal padding for video page to maximize space
+    if (activeTab === 'youtube' || activeTab === 'reading') {
+      return 'xl:px-4 xl:py-2 px-0 py-0'; // Minimal padding for full-page modes
     }
     return 'px-4 py-6 md:py-8';
   };
@@ -332,7 +437,7 @@ const App: React.FC = () => {
         )}
 
         <div className="flex-1 flex overflow-hidden relative">
-          <main className={`flex-1 ${activeTab === 'youtube' ? 'overflow-hidden' : 'overflow-y-auto'} ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' || isImmersive ? 'gap-0' : 'gap-6 md:gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' ? '' : 'items-center'}`}>
+          <main className={`flex-1 ${activeTab === 'youtube' || activeTab === 'reading' ? 'overflow-hidden' : 'overflow-y-auto'} ${getContainerPadding()} flex flex-col ${activeTab === 'youtube' || activeTab === 'reading' || isImmersive ? 'gap-0' : 'gap-6 md:gap-8'} relative transition-all duration-300 ease-in-out ${activeTab === 'writing' || activeTab === 'youtube' || activeTab === 'reading' ? '' : 'items-center'}`}>
 
             {activeTab === 'analyzer' && (
               <div className="w-full max-w-5xl flex flex-col gap-8">
@@ -426,6 +531,21 @@ const App: React.FC = () => {
 
             {activeTab === 'saved-words' && (
               <SavedWordsPage />
+            )}
+
+            {activeTab === 'reading' && (
+              selectedReadingNotebook ? (
+                <IntensiveReadingPage 
+                  initialNotebookData={selectedReadingNotebook}
+                  onBack={() => {
+                    setSelectedReadingNotebook(null);
+                    setHighlightedWord(null);
+                  }}
+                  initialHighlightedWord={highlightedWord || undefined}
+                />
+              ) : (
+                <ReadingNotebookPage onSelectNotebook={setSelectedReadingNotebook} />
+              )
             )}
           </main>
 

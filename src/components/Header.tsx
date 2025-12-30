@@ -1,10 +1,10 @@
 
-import { Sparkles, Book, PenTool, Star } from 'lucide-react';
+import { Sparkles, Book, PenTool, Star, BookOpen } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
-  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words';
-  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words') => void;
+  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading';
+  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
@@ -25,57 +25,67 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
           <span className="font-bold text-lg tracking-tight text-gray-800 dark:text-gray-100 md:hidden">GV</span>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
-          <nav className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl">
+        <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end overflow-hidden">
+          <nav className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl overflow-x-auto no-scrollbar max-w-full">
             <button
-              onClick={() => onNavigate('analyzer')}
-              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'analyzer'
-                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+              onClick={() => onNavigate('youtube')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'youtube'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
-              <Sparkles className="w-4 h-4 hidden sm:block" />
+              <Sparkles className="w-3.5 h-3.5 hidden xs:block" />
+              视频跟读
+            </button>
+            <button
+              onClick={() => onNavigate('reading')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'reading'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 hidden xs:block" />
+              精读文章
+            </button>
+            <button
+              onClick={() => onNavigate('saved-words')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'saved-words'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <Star className="w-3.5 h-3.5 hidden xs:block" />
+              每日复习
+            </button>
+            <button
+              onClick={() => onNavigate('analyzer')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'analyzer'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 hidden xs:block" />
               句法
             </button>
             <button
               onClick={() => onNavigate('dictionary')}
-              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'dictionary'
-                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'dictionary'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
-              <Book className="w-4 h-4 hidden sm:block" />
+              <Book className="w-3.5 h-3.5 hidden xs:block" />
               词典
             </button>
             <button
               onClick={() => onNavigate('writing')}
-              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'writing'
-                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'writing'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
-              <PenTool className="w-4 h-4 hidden sm:block" />
+              <PenTool className="w-3.5 h-3.5 hidden xs:block" />
               写作
-            </button>
-            <button
-              onClick={() => onNavigate('youtube')}
-              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'youtube'
-                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-            >
-              <Sparkles className="w-4 h-4 hidden sm:block" />
-              视频学习
-            </button>
-            <button
-              onClick={() => onNavigate('saved-words')}
-              className={`px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'saved-words'
-                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-            >
-              <Star className="w-4 h-4 hidden sm:block" />
-              收藏
             </button>
           </nav>
           
