@@ -375,20 +375,28 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     const isDeepLinkHighlighted = highlightedWord && cleanWord === highlightedWord.toLowerCase();
     const isSavedHighlighted = showSavedHighlights && savedWordsSet.has(cleanWord);
     const isHighlighted = isDeepLinkHighlighted || isSavedHighlighted;
+    const isNormalMode = studyMode === 'normal';
 
     return (
       <React.Fragment key={Math.random()}>
         <span
           data-word={cleanWord}
-          className={`px-0.5 cursor-pointer transition-all border-b border-dashed border-gray-300 dark:border-gray-600 rounded ${
+          className={`px-0.5 transition-all rounded ${isNormalMode ? 'cursor-text' : 'cursor-pointer'} ${
             isHighlighted 
               ? (isDeepLinkHighlighted ? 'bg-yellow-400 dark:bg-yellow-600/60 ring-2 ring-yellow-400/50' : 'bg-yellow-400/60 dark:bg-yellow-600/30 ring-1 ring-yellow-400/20') + ' text-black dark:text-white font-bold'
-              : 'hover:bg-yellow-200 dark:hover:bg-yellow-900/50 hover:border-yellow-400'
+              : (isNormalMode ? '' : 'border-b border-dashed border-gray-300 dark:border-gray-600 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 hover:border-yellow-400')
           }`}
           onClick={(e) => {
+            if (isNormalMode) return; // 普通模式下不处理单击，以便正常选择文本
             e.stopPropagation();
             handleWordClick(word, context);
-            if (highlightedWord) setHighlightedWord(''); // Clear highlight on manual click if desired
+            if (highlightedWord) setHighlightedWord('');
+          }}
+          onDoubleClick={(e) => {
+            if (!isNormalMode) return; // 解析模式下已通过单击处理
+            e.stopPropagation();
+            handleWordClick(word, context);
+            if (highlightedWord) setHighlightedWord('');
           }}
         >
           {word}
