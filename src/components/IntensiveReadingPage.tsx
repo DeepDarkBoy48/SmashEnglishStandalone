@@ -46,54 +46,119 @@ interface IntensiveReadingPageProps {
     onTranslate: (content: string) => void
   }> = ({ children, content, onAnalyze, onTranslate }) => {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({ x: 0, y: 0, show: false });
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+      // Desktop only check
+      if (window.innerWidth < 768) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      setMenuPos({ x: e.clientX, y: e.clientY, show: true });
+    };
+
+    useEffect(() => {
+      const handleClickOutside = (e: Event) => {
+        if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+          setMenuPos(prev => ({ ...prev, show: false }));
+        } else {
+          // If it's a click event that reached here, close it
+          setMenuPos(prev => ({ ...prev, show: false }));
+        }
+      };
+      if (menuPos.show) {
+        window.addEventListener('click', handleClickOutside);
+        window.addEventListener('scroll', handleClickOutside, true);
+      }
+      return () => {
+        window.removeEventListener('click', handleClickOutside);
+        window.removeEventListener('scroll', handleClickOutside, true);
+      };
+    }, [menuPos.show]);
 
     return (
       <span 
         className={`group/sentence relative inline transition-all duration-300 ${isMobileOpen ? 'bg-pink-500/10' : 'hover:bg-pink-500/10 dark:hover:bg-pink-500/20'} rounded px-1 -mx-1 cursor-pointer`}
         onClick={(e) => {
           e.stopPropagation();
-          // On desktop, click can "lock" the menu or provide a more deliberate interaction
-          setIsMobileOpen(!isMobileOpen);
+          // Mobile only: toggle tooltip
+          if (window.innerWidth < 768) {
+            setIsMobileOpen(!isMobileOpen);
+          }
         }}
-        onMouseEnter={() => {
-          // Keep hover functionality for desktop users
-          if (window.innerWidth >= 768) setIsMobileOpen(true);
-        }}
-        onMouseLeave={() => setIsMobileOpen(false)}
+        onContextMenu={handleContextMenu}
       >
         {children}
-        <span className={`absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-0.5 transition-all duration-500 z-[40] bg-white dark:bg-gray-900 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full 
+        
+        {/* Mobile Tooltip - Only show on small screens */}
+        <span className={`md:hidden absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-0.5 transition-all duration-500 z-[40] bg-white dark:bg-gray-900 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full 
           ${isMobileOpen 
             ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
             : 'opacity-0 translate-y-2 scale-90 pointer-events-none'
           }`}>
-          {/* Invisible bridge to catch hover when moving mouse to the toolbar */}
-          <div className="absolute -bottom-3 left-0 right-0 h-4 bg-transparent" />
-          
           <button
             onClick={(e) => {
               e.stopPropagation();
               onAnalyze(content);
               setIsMobileOpen(false);
             }}
-            className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
+            className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>语法分析</span>
           </button>
-          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5 relative z-10" />
+          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
           <button
             onClick={(e) => {
               e.stopPropagation();
               onTranslate(content);
               setIsMobileOpen(false);
             }}
-            className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
+            className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
           >
             <Languages className="w-3.5 h-3.5" />
             <span>极速翻译</span>
           </button>
         </span>
+
+        {/* Desktop Context Menu */}
+        {menuPos.show && (
+          <div 
+            ref={menuRef}
+            style={{ 
+              position: 'fixed', 
+              left: Math.min(menuPos.x, window.innerWidth - 160), 
+              top: Math.min(menuPos.y, window.innerHeight - 100),
+              zIndex: 9999
+            }}
+            className="hidden md:flex flex-col bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden min-w-[140px] animate-in fade-in zoom-in duration-150"
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnalyze(content);
+                setMenuPos(prev => ({ ...prev, show: false }));
+              }}
+              className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors w-full text-left"
+            >
+              <Sparkles className="w-4 h-4" />
+              语法分析
+            </button>
+            <div className="h-[1px] bg-gray-100 dark:bg-gray-800" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTranslate(content);
+                setMenuPos(prev => ({ ...prev, show: false }));
+              }}
+              className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors w-full text-left"
+            >
+              <Languages className="w-4 h-4" />
+              极速翻译
+            </button>
+          </div>
+        )}
       </span>
     );
   };
@@ -105,12 +170,11 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [title, setTitle] = useState(initialNotebookData?.title || '');
   const [highlightedWord, setHighlightedWord] = useState(initialHighlightedWord || '');
-  const [studyMode, setStudyMode] = useState<'lookup' | 'analysis'>('lookup');
+  const [studyMode, setStudyMode] = useState<'normal' | 'analysis'>('analysis');
   
   const [notebookId, setNotebookId] = useState<number | null>(initialNotebookData?.id || null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
   const [savedWordsSet, setSavedWordsSet] = useState<Set<string>>(new Set());
   const [savedWordsList, setSavedWordsList] = useState<any[]>([]);
   const [showSavedHighlights, setShowSavedHighlights] = useState(() => {
@@ -198,7 +262,11 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Small delay to ensure the DOM has updated and content is rendered
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [results]);
 
   const handleStartReading = async () => {
@@ -244,7 +312,6 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       timestamp: Date.now()
     };
     setResults(prev => [...prev, newItem]);
-    setIsSidebarOpen(true); // Automatically open panel on mobile
   };
 
   const handleAnalyze = async (sentence: string) => {
@@ -469,288 +536,261 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-full w-full overflow-hidden bg-white dark:bg-black relative">
-      {/* Left Column: Article View */}
-      <div className="flex-1 overflow-y-auto border-r border-gray-100 dark:border-gray-800 scroll-smooth pb-20 md:pb-0">
-        <div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900/50">
-          <div className="max-w-5xl mx-auto px-6 py-4 md:px-12 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg shrink-0"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">返回列表</span>
-                </button>
-              )}
-            </div>
+    <div className="flex justify-center h-full w-full bg-gray-50 dark:bg-black/90">
+      <div className="w-full max-w-[1440px] flex h-full bg-white dark:bg-black border-x border-gray-100 dark:border-gray-900 shadow-2xl relative overflow-hidden">
+        {/* Left Column: Article View (2/3) */}
+        <div className="flex-[2] overflow-y-auto scroll-smooth relative border-r border-gray-100 dark:border-gray-800">
+          <div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900/50">
+            <div className="w-full px-6 py-4 flex items-center">
+              {/* Left side: Back Button */}
+              <div className="flex-none flex items-center justify-start min-w-[60px]">
+                {onBack && (
+                  <button
+                    onClick={onBack}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-2 transition-all hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg shrink-0"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">返回</span>
+                  </button>
+                )}
+              </div>
 
-            <div className="flex-1 flex items-center justify-center px-4">
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={async () => {
-                  if (notebookId && title.trim()) {
-                    setIsSaving(true);
-                    try {
-                      await updateReadingNotebookService(notebookId, { title: title.trim() });
-                    } catch (err) {
-                      console.error('Failed to update title:', err);
-                    } finally {
-                      setIsSaving(false);
+              {/* Center: Title */}
+              <div className="flex-1 flex items-center justify-center px-4 overflow-hidden relative">
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={async () => {
+                    if (notebookId && title.trim()) {
+                      setIsSaving(true);
+                      try {
+                        await updateReadingNotebookService(notebookId, { title: title.trim() });
+                      } catch (err) {
+                        console.error('Failed to update title:', err);
+                      } finally {
+                        setIsSaving(false);
+                      }
                     }
-                  }
-                }}
-                className="w-full max-w-xl text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-gray-100 font-serif font-bold text-lg md:text-xl truncate hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg px-2 py-1 transition-colors cursor-edit"
-                placeholder="未命名文章"
-              />
-            </div>
+                  }}
+                  className="w-full max-w-xl text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-gray-100 font-serif font-bold text-lg md:text-xl truncate hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg px-2 py-1 transition-colors cursor-edit"
+                  placeholder="未命名文章"
+                />
+                {isSaving && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 text-[8px] text-pink-500 font-bold uppercase tracking-widest animate-pulse whitespace-nowrap">
+                    <Loader2 className="w-2 h-2 animate-spin" />
+                    保存中
+                  </div>
+                )}
+              </div>
 
-            <div className="flex items-center gap-3">
-              {isSaving && (
-                <div className="flex items-center gap-2 text-xs text-pink-500 font-medium">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>自动同步中...</span>
+              {/* Right side: Controls */}
+              <div className="flex-none flex items-center justify-end gap-3 shrink-0 ml-2">
+                <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800 transition-all shrink-0">
+                  <button
+                    onClick={() => setShowSavedHighlights(!showSavedHighlights)}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${
+                      showSavedHighlights 
+                        ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400' 
+                        : 'bg-transparent border-transparent text-gray-400'
+                    }`}
+                    title={showSavedHighlights ? "关闭收藏词高亮" : "开启收藏词高亮"}
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">已存高亮</span>
+                  </button>
+                  
+                  {showSavedHighlights && (
+                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg overflow-hidden animate-in fade-in slide-in-from-right-1 duration-300">
+                      <button
+                        onClick={() => setHighlightScope('global')}
+                        className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
+                          highlightScope === 'global'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        全
+                      </button>
+                      <button
+                        onClick={() => setHighlightScope('notebook')}
+                        className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
+                          highlightScope === 'notebook'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        本
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <div className="flex items-center p-0.5 sm:p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm shrink-0">
-                <button
-                  onClick={() => setStudyMode('lookup')}
-                  className={`px-2 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                    studyMode === 'lookup' 
-                      ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5' 
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                  }`}
-                >
-                  <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  <span>单词<span className="hidden sm:inline">模式</span></span>
-                </button>
-                <button
-                  onClick={() => setStudyMode('analysis')}
-                  className={`px-2 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                    studyMode === 'analysis' 
-                      ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5' 
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  <span>解析<span className="hidden sm:inline">模式</span></span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1 ml-1 sm:ml-2 p-1 bg-white/50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800">
-                <button
-                  onClick={() => setShowSavedHighlights(!showSavedHighlights)}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] sm:text-xs font-bold ${
-                    showSavedHighlights 
-                      ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400' 
-                      : 'bg-transparent border-transparent text-gray-400'
-                  }`}
-                  title={showSavedHighlights ? "关闭收藏词高亮" : "开启收藏词高亮"}
-                >
-                  <History className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden sm:inline">已存高亮</span>
-                </button>
-                
-                {showSavedHighlights && (
-                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg">
-                    <button
-                      onClick={() => setHighlightScope('global')}
-                      className={`px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-bold transition-all ${
-                        highlightScope === 'global'
-                          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      全局
-                    </button>
-                    <button
-                      onClick={() => setHighlightScope('notebook')}
-                      className={`px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-bold transition-all ${
-                        highlightScope === 'notebook'
-                          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      本篇
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center p-0.5 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm shrink-0">
+                  <button
+                    onClick={() => setStudyMode('normal')}
+                    className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                      studyMode === 'normal' 
+                        ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    <BookOpen className="w-3 h-3" />
+                    <span>普通</span>
+                  </button>
+                  <button
+                    onClick={() => setStudyMode('analysis')}
+                    className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                      studyMode === 'analysis' 
+                        ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>解析</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="max-w-3xl mx-auto px-6 py-8 md:px-12 space-y-6">
-          {isDetailLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-10 h-10 text-pink-500 animate-spin opacity-50" />
-              <p className="mt-4 text-gray-500 font-serif">正在加载文章内容...</p>
-            </div>
-          ) : (
-            <div className="prose prose-pink dark:prose-invert max-w-none prose-p:my-2 prose-headings:font-serif">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  p: ({ children }) => (
-                    <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
-                      {makeInteractive(children)}
-                    </p>
-                  ),
-                  li: ({ children }) => (
-                    <li className="mb-2 text-lg text-gray-700 dark:text-gray-300">
-                      {makeInteractive(children)}
-                    </li>
-                  ),
-                  h1: ({ children }) => (
-                    <h1 className="text-3xl font-bold mb-6 font-serif border-b pb-2">
-                      {makeInteractive(children)}
-                    </h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="text-2xl font-bold mt-8 mb-4 font-serif">
-                      {makeInteractive(children)}
-                    </h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="text-xl font-bold mt-6 mb-2 font-serif">
-                      {makeInteractive(children)}
-                    </h3>
-                  ),
-                  table: ({ children }) => (
-                    <div className="overflow-x-auto my-6">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        {children}
-                      </table>
-                    </div>
-                  ),
-                  th: ({ children }) => <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{children}</th>,
-                  td: ({ children }) => (
-                    <td className="px-4 py-3 text-sm border-t border-gray-100 dark:border-gray-800">
-                      {makeInteractive(children)}
-                    </td>
-                  ),
-                  code: ({ children, inline }: any) => {
-                    if (inline) {
-                      return <code className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 font-mono text-sm inline-block">{children}</code>;
-                    }
-                    return (
-                      <pre className="p-4 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto my-4 font-mono text-sm leading-relaxed border border-gray-800 shadow-lg">
-                        <code>{children}</code>
-                      </pre>
-                    );
-                  },
-                  blockquote: ({ children }) => <blockquote className="border-l-4 border-pink-200 dark:border-pink-900 pl-4 my-4 italic text-gray-600 dark:text-gray-400">{children}</blockquote>,
-                }}
-              >
-                {text}
-              </ReactMarkdown>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right Column: Results Sidebar / Mobile Bottom Sheet */}
-      <div className={`
-        fixed inset-x-0 bottom-0 z-[45] md:relative md:inset-auto md:w-[450px] 2xl:w-[550px]
-        bg-gray-50 dark:bg-[#0d1117] flex flex-col 
-        border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800 
-        transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
-        ${isSidebarOpen ? 'h-[75vh] translate-y-0' : 'h-[60px] md:h-full translate-y-0 md:translate-y-0'}
-      `}>
-        {/* Mobile Pull Handle / Header */}
-        <div 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="md:hidden flex flex-col items-center justify-center py-2 cursor-pointer bg-white dark:bg-[#0d1117] border-b border-gray-100 dark:border-gray-800/50 shrink-0"
-        >
-          <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mb-1" />
-          <div className="flex items-center gap-2">
-            <Sparkles className={`w-4 h-4 text-pink-500 transition-transform duration-500 ${isSidebarOpen ? 'rotate-180' : ''}`} />
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              {results.length > 0 ? `AI 分析结果 (${results.length})` : 'AI 分析面板'}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm bg-white dark:bg-[#0d1117] z-10 transition-colors shrink-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-pink-500" />
-            <h2 className="font-bold text-gray-800 dark:text-gray-200">AI 分析面板</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            {results.length > 0 && (
-              <button
-                onClick={() => setResults([])}
-                className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-                清除记录
-              </button>
+          <div className="w-full max-w-3xl mx-auto px-8 py-10 space-y-8">
+            {isDetailLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-10 h-10 text-pink-500 animate-spin opacity-50" />
+                <p className="mt-4 text-gray-500 font-serif">正在加载文章内容...</p>
+              </div>
+            ) : (
+              <div className="prose prose-pink dark:prose-invert max-w-none prose-p:my-2 prose-headings:font-serif">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => (
+                      <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
+                        {makeInteractive(children)}
+                      </p>
+                    ),
+                    li: ({ children }) => (
+                      <li className="mb-2 text-lg text-gray-700 dark:text-gray-300">
+                        {makeInteractive(children)}
+                      </li>
+                    ),
+                    h1: ({ children }) => (
+                      <h1 className="text-3xl font-bold mb-6 font-serif border-b pb-2">
+                        {makeInteractive(children)}
+                      </h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-2xl font-bold mt-8 mb-4 font-serif">
+                        {makeInteractive(children)}
+                      </h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-xl font-bold mt-6 mb-2 font-serif">
+                        {makeInteractive(children)}
+                      </h3>
+                    ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-6">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    th: ({ children }) => <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{children}</th>,
+                    td: ({ children }) => (
+                      <td className="px-4 py-3 text-sm border-t border-gray-100 dark:border-gray-800">
+                        {makeInteractive(children)}
+                      </td>
+                    ),
+                    code: ({ children, inline }: any) => {
+                      if (inline) {
+                        return <code className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 font-mono text-sm inline-block">{children}</code>;
+                      }
+                      return (
+                        <pre className="p-4 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto my-4 font-mono text-sm leading-relaxed border border-gray-800 shadow-lg">
+                          <code>{children}</code>
+                        </pre>
+                      );
+                    },
+                    blockquote: ({ children }) => <blockquote className="border-l-4 border-pink-200 dark:border-pink-900 pl-4 my-4 italic text-gray-600 dark:text-gray-400">{children}</blockquote>,
+                  }}
+                >
+                  {text}
+                </ReactMarkdown>
+              </div>
             )}
-            <button 
-              onClick={() => setIsSidebarOpen(false)}
-              className="md:hidden p-1 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth transition-all no-scrollbar">
-          {results.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 space-y-4 py-10">
-              <History className="w-16 h-16 text-gray-300 dark:text-gray-600" />
-              <div className="space-y-1">
-                <p className="text-lg font-bold">暂无分析记录</p>
-                <p className="text-sm">点击左侧句子或单词开始探索</p>
+        {/* Right Column: AI Analysis Panel (1/3) */}
+        <div className="flex-[1] flex flex-col bg-gray-50 dark:bg-[#0d1117] h-full">
+          <div className="p-5 border-b border-gray-100 dark:border-gray-800 shadow-sm bg-white/50 dark:bg-transparent shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-pink-500 to-rose-400 rounded-lg ">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-800 dark:text-gray-200 text-sm">AI 分析面板</h2>
+                {results.length > 0 && (
+                  <p className="text-[10px] text-gray-400 font-medium">{results.length} 条分析</p>
+                )}
+              </div>
+              <div className="ml-auto">
+                {results.length > 0 && (
+                  <button
+                    onClick={() => setResults([])}
+                    className="text-[10px] text-gray-400 hover:text-rose-500 flex items-center gap-1 transition-all"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>清空</span>
+                  </button>
+                )}
               </div>
             </div>
-          ) : (
-            results.map((res) => (
-              <div key={res.id} className="animate-in fade-in slide-in-from-right-4 duration-500">
-                {res.type === 'analysis' && (
-                  <ResultDisplay result={res.data} compact={true} />
-                )}
-                {res.type === 'dictionary' && (
-                  <QuickLookupDisplay result={res.data} />
-                )}
-                {res.type === 'translation' && (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-100 dark:border-blue-900/50 p-6 shadow-sm group hover:shadow-md transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Languages className="w-4 h-4 text-blue-500" />
-                      <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">极速翻译</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar h-full">
+            {results.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-4">
+                <History className="w-10 h-10 text-gray-300" />
+                <div className="space-y-1">
+                  <p className="text-base font-bold text-gray-400">暂无记录</p>
+                  <p className="text-xs">点击左侧原文开始分析</p>
+                </div>
+              </div>
+            ) : (
+              results.map((res) => (
+                <div key={res.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {res.type === 'analysis' && (
+                    <ResultDisplay result={res.data} compact={true} />
+                  )}
+                  {res.type === 'dictionary' && (
+                    <QuickLookupDisplay result={res.data} />
+                  )}
+                  {res.type === 'translation' && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-blue-100 dark:border-blue-900/50 p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Languages className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">极速翻译</span>
+                      </div>
+                      <p className="text-base text-gray-800 dark:text-gray-100 leading-relaxed font-medium">
+                        {res.data.translation}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-3 font-serif line-clamp-2">
-                       "{res.data.original}"
-                    </p>
-                    <p className="text-lg text-gray-800 dark:text-gray-100 font-medium leading-relaxed">
-                      {res.data.translation}
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
+              ))
+            )}
+            {Object.entries(loadingStates).some(([_, loading]) => loading) && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-pink-500 opacity-50" />
               </div>
-            ))
-          )}
-          {/* Progress Indicators */}
-          {Object.entries(loadingStates).some(([_, loading]) => loading) && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-pink-500 opacity-50" />
-            </div>
-          )}
-          <div ref={resultsEndRef} />
+            )}
+            <div ref={resultsEndRef} />
+          </div>
         </div>
       </div>
-
-      {/* Backdrop for mobile */}
-      {isSidebarOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 transition-all duration-500"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 };

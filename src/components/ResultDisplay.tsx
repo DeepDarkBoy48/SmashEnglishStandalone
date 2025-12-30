@@ -135,7 +135,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                         <BookOpen className={`${compact ? 'w-3.5 h-3.5' : 'w-6 h-6'}`} />
                     </div>
                     <div>
-                        <h3 className={`font-bold text-gray-800 dark:text-gray-200 ${compact ? 'text-xs sm:text-sm' : 'text-lg md:text-xl'}`}>逐词/意群详解</h3>
+                        <h3 className={`font-bold text-gray-800 dark:text-gray-200 ${compact ? 'text-sm' : 'text-lg md:text-xl'}`}>逐词/意群详解</h3>
                         {!compact && <p className="text-gray-400 dark:text-gray-500 text-xs hidden sm:block">深入理解重点词组与固定搭配</p>}
                     </div>
                 </div>
@@ -146,12 +146,12 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                             {/* Card Header */}
                             <div className={`border-b border-gray-100/50 dark:border-gray-700/50 group-hover:border-pink-50 dark:group-hover:border-pink-900/50 ${compact ? 'p-3' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-1 gap-2">
-                                    <span className={`font-serif text-gray-800 dark:text-gray-200 font-medium tracking-tight leading-tight break-words ${compact ? 'text-lg' : 'text-2xl'}`}>{token.text}</span>
-                                    <span className="flex-shrink-0 px-2 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider group-hover:bg-pink-100 dark:group-hover:bg-pink-900/50 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                                    <span className={`font-serif text-gray-800 dark:text-gray-200 font-medium tracking-tight leading-tight break-words ${compact ? 'text-xl' : 'text-2xl'}`}>{token.text}</span>
+                                    <span className="flex-shrink-0 px-2 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-wider group-hover:bg-pink-100 dark:group-hover:bg-pink-900/50 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
                                         {token.partOfSpeech}
                                     </span>
                                 </div>
-                                <div className={`text-pink-600 dark:text-pink-400 font-medium mt-1 ${compact ? 'text-sm' : 'text-base'}`}>
+                                <div className={`text-pink-600 dark:text-pink-400 font-bold mt-1 ${compact ? 'text-base' : 'text-base'}`}>
                                     {token.meaning}
                                 </div>
                             </div>
@@ -175,7 +175,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, compact = 
                                             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">解析</span>
                                         </div>
                                     )}
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                                         {token.explanation}
                                     </p>
                                 </div>
