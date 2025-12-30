@@ -114,6 +114,8 @@ export interface QuickLookupResult {
   otherMeanings?: OtherMeaning[]; // 其他常见释义
   originalSentence?: string; // 原句内容
   url?: string;             // 原始链接
+  reading_id?: number;      // 关联精读笔记本 ID
+  video_id?: number;        // 关联视频笔记本 ID
 }
 
 
@@ -146,6 +148,8 @@ export interface SavedWord {
   data: any; // QuickLookupResult data
   created_at?: string;
   note_id?: number;
+  reading_id?: number;
+  video_id?: number;
   // FSRS fields
   stability: number;
   difficulty: number;

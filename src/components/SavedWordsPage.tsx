@@ -374,13 +374,52 @@ export const SavedWordsPage: React.FC = () => {
                     </div>
 
                     {(() => {
+                      const readingId = item.reading_id || data?.reading_id;
+                      const videoId = item.video_id || data?.video_id;
                       const sourceUrl = item.url || data?.url;
+
+                      if (readingId) {
+                        return (
+                          <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              精读记事本
+                            </div>
+                            <a 
+                              href={`/intensive-reading?id=${readingId}&word=${encodeURIComponent(item.word)}`} 
+                              className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
+                            >
+                              <span>回到文章精读</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        );
+                      }
+
+                      if (videoId) {
+                        return (
+                          <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                              <BrainCircuit className="w-3.5 h-3.5" />
+                              视频学习
+                            </div>
+                            <a 
+                              href={`/video-study?id=${videoId}`} 
+                              className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
+                            >
+                              <span>回到视频学习</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        );
+                      }
+
                       if (!sourceUrl) return null;
                       return (
                         <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
                           <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                             <ExternalLink className="w-3.5 h-3.5" />
-                            Context Source
+                            外部来源
                           </div>
                           <a 
                             href={sourceUrl} 

@@ -49,8 +49,8 @@ export const getChatResponseService = async (
   return result.response;
 };
 
-export const quickLookupService = (word: string, context: string, url?: string): Promise<QuickLookupResult> => {
-  return request.post('/fastapi/quick-lookup', { word, context, url }) as Promise<QuickLookupResult>;
+export const quickLookupService = (word: string, context: string, url?: string, reading_id?: number, video_id?: number): Promise<QuickLookupResult> => {
+  return request.post('/fastapi/quick-lookup', { word, context, url, reading_id, video_id }) as Promise<QuickLookupResult>;
 };
 
 export const translateService = (text: string): Promise<TranslateResult> => {

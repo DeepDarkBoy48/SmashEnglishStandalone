@@ -20,7 +20,8 @@ import {
   rapidLookupService,
   analyzeSentenceService,
   quickLookupService,
-  getNotebookDetailService
+  getNotebookDetailService,
+  getSavedWordsService
 } from '../services/geminiService';
 import type { AnalysisResult, QuickLookupResult, VideoNotebook } from '../types';
 import { ResultDisplay } from './ResultDisplay';
@@ -100,6 +101,15 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   const isManualJumpRef = useRef(false);
   const isProgrammaticScrollRef = useRef(false);
   const activeSubtitleIdRef = useRef<number | null>(null);
+  const [savedWordsSet, setSavedWordsSet] = useState<Set<string>>(new Set());
+  const [savedWordsList, setSavedWordsList] = useState<any[]>([]);
+  const [showSavedHighlights, setShowSavedHighlights] = useState(() => {
+    const saved = localStorage.getItem('smash_english_show_saved_highlights');
+    return saved === null ? true : saved === 'true';
+  });
+  const [highlightScope, setHighlightScope] = useState<'global' | 'notebook'>(() => {
+    return (localStorage.getItem('smash_english_highlight_scope') as 'global' | 'notebook') || 'global';
+  });
 
   const toolsRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +125,40 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   }, []);
 
   // --- Effects ---
+
+  // Fetch saved words for highlighting
+  useEffect(() => {
+    localStorage.setItem('smash_english_show_saved_highlights', showSavedHighlights.toString());
+    localStorage.setItem('smash_english_highlight_scope', highlightScope);
+  }, [showSavedHighlights, highlightScope]);
+
+  useEffect(() => {
+    const fetchSavedWords = async () => {
+      try {
+        const data = await getSavedWordsService();
+        setSavedWordsList(data.words);
+        updateActiveHighlights(data.words, highlightScope);
+      } catch (err) {
+        console.error('Failed to fetch saved words:', err);
+      }
+    };
+    fetchSavedWords();
+  }, []);
+
+  const updateActiveHighlights = (words: any[], scope: 'global' | 'notebook') => {
+    if (scope === 'global') {
+      const wordSet = new Set(words.map(w => w.word.toLowerCase().trim()));
+      setSavedWordsSet(wordSet);
+    } else {
+      const filtered = words.filter(w => w.video_id === notebookId);
+      const wordSet = new Set(filtered.map(w => w.word.toLowerCase().trim()));
+      setSavedWordsSet(wordSet);
+    }
+  };
+
+  useEffect(() => {
+    updateActiveHighlights(savedWordsList, highlightScope);
+  }, [highlightScope, notebookId, savedWordsList]);
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -590,11 +634,16 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       try {
         const currentTime = Math.floor(playerRef.current?.getCurrentTime() || 0);
         const currentUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}&t=${currentTime}s` : window.location.href;
-        const result = await quickLookupService(cleanWord, context, currentUrl);
+        const result = await quickLookupService(cleanWord, context, currentUrl, undefined, notebookId || undefined);
         setBigTextDictionaryResults(prev => ({
           ...prev,
           [cacheKey]: { ...result, originalSentence: context, url: currentUrl }
         }));
+        
+        // Update local list for immediate highlight
+        const newWord = { word: cleanWord, video_id: notebookId };
+        setSavedWordsList(prev => [...prev, newWord]);
+
         setBigTextResultOrder(prev => [
           { type: 'dictionary', key: cacheKey },
           ...prev.filter(i => !(i.type === 'dictionary' && i.key === cacheKey))
@@ -624,7 +673,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
   };
 
   const renderSubtitleText = (text: string, context: string) => {
-    if (!isWordSearchEnabled && !isFastLookupEnabled) return text;
+    if (!isWordSearchEnabled && !isFastLookupEnabled && !showSavedHighlights) return text;
 
     // Split by words but keep punctuation as separate or attached
     const words = text.split(/(\s+)/);
@@ -637,10 +686,12 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
         const result = fastLookupResults[cacheKey];
         const isLoading = fastLookupLoading[cacheKey];
 
+        const isSaved = showSavedHighlights && savedWordsSet.has(word.toLowerCase());
+
         return (
           <React.Fragment key={idx}>
             <span
-              className={`hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-all text-gray-900 dark:text-gray-100 font-medium ${isFastLookupEnabled ? 'border-b border-dashed border-gray-400 dark:border-gray-600' : 'underline decoration-dotted decoration-gray-400 dark:decoration-gray-600 underline-offset-4'} active:bg-yellow-300 dark:active:bg-yellow-800`}
+              className={`hover:bg-yellow-200 dark:hover:bg-yellow-900/50 rounded px-0.5 cursor-pointer transition-all text-gray-900 dark:text-gray-100 font-medium ${isSaved ? 'bg-yellow-400 dark:bg-yellow-600/40 ring-1 ring-yellow-400/30' : ''} ${isFastLookupEnabled ? 'border-b border-dashed border-gray-400 dark:border-gray-600' : 'underline decoration-dotted decoration-gray-400 dark:decoration-gray-600 underline-offset-4'} active:bg-yellow-300 dark:active:bg-yellow-800`}
               onClick={(e) => handleWordClick(word, context, e)}
             >
               {word}
@@ -798,6 +849,41 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
                   <div className={`w-10 h-5 rounded-full transition-colors relative ${isAutoScrollEnabled ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     <div className={`absolute top-1 left-1 w-3 h-3 ${isAutoScrollEnabled ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${isAutoScrollEnabled ? 'translate-x-5' : ''}`} />
                   </div>
+                </div>
+
+                {/* Saved Highlights */}
+                <div className="px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer" onClick={() => setShowSavedHighlights(!showSavedHighlights)}>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">已存高亮</span>
+                    <div className={`w-10 h-5 rounded-full transition-colors relative ${showSavedHighlights ? 'bg-black dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                      <div className={`absolute top-1 left-1 w-3 h-3 ${showSavedHighlights ? 'bg-white dark:bg-black' : 'bg-white'} rounded-full transition-transform ${showSavedHighlights ? 'translate-x-5' : ''}`} />
+                    </div>
+                  </div>
+                  
+                  {showSavedHighlights && (
+                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                      <button
+                        onClick={() => setHighlightScope('global')}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          highlightScope === 'global'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        全局
+                      </button>
+                      <button
+                        onClick={() => setHighlightScope('notebook')}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          highlightScope === 'notebook'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        本视频
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="h-px bg-gray-100 dark:bg-gray-700 my-1 mx-2" />

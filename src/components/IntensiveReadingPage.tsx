@@ -14,7 +14,8 @@ import {
   translateService, 
   createReadingNotebookService,
   updateReadingNotebookService,
-  getReadingNotebookDetailService
+  getReadingNotebookDetailService,
+  getSavedWordsService
 } from '../services/geminiService';
 import type { ReadingNotebook } from '../types';
 import { ResultDisplay } from './ResultDisplay';
@@ -35,6 +36,68 @@ interface IntensiveReadingPageProps {
   initialHighlightedWord?: string;
 }
 
+  /**
+   * Precise Sentence-level Wrapper - Moved outside for better performance and mobile support
+   */
+  const SentenceAnalysisWrapper: React.FC<{ 
+    children: any, 
+    content: string,
+    onAnalyze: (content: string) => void,
+    onTranslate: (content: string) => void
+  }> = ({ children, content, onAnalyze, onTranslate }) => {
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    return (
+      <span 
+        className={`group/sentence relative inline transition-all duration-300 ${isMobileOpen ? 'bg-pink-500/10' : 'hover:bg-pink-500/10 dark:hover:bg-pink-500/20'} rounded px-1 -mx-1 cursor-pointer`}
+        onClick={(e) => {
+          e.stopPropagation();
+          // On desktop, click can "lock" the menu or provide a more deliberate interaction
+          setIsMobileOpen(!isMobileOpen);
+        }}
+        onMouseEnter={() => {
+          // Keep hover functionality for desktop users
+          if (window.innerWidth >= 768) setIsMobileOpen(true);
+        }}
+        onMouseLeave={() => setIsMobileOpen(false)}
+      >
+        {children}
+        <span className={`absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-0.5 transition-all duration-500 z-[40] bg-white dark:bg-gray-900 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full 
+          ${isMobileOpen 
+            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+            : 'opacity-0 translate-y-2 scale-90 pointer-events-none'
+          }`}>
+          {/* Invisible bridge to catch hover when moving mouse to the toolbar */}
+          <div className="absolute -bottom-3 left-0 right-0 h-4 bg-transparent" />
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAnalyze(content);
+              setIsMobileOpen(false);
+            }}
+            className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>语法分析</span>
+          </button>
+          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5 relative z-10" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTranslate(content);
+              setIsMobileOpen(false);
+            }}
+            className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
+          >
+            <Languages className="w-3.5 h-3.5" />
+            <span>极速翻译</span>
+          </button>
+        </span>
+      </span>
+    );
+  };
+
 export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ initialNotebookData, onBack, initialHighlightedWord }) => {
   const [inputMode, setInputMode] = useState(!initialNotebookData || !initialNotebookData.id || (initialNotebookData as any)._forceEdit);
   const [text, setText] = useState(initialNotebookData?.content || '');
@@ -47,6 +110,16 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   const [notebookId, setNotebookId] = useState<number | null>(initialNotebookData?.id || null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
+  const [savedWordsSet, setSavedWordsSet] = useState<Set<string>>(new Set());
+  const [savedWordsList, setSavedWordsList] = useState<any[]>([]);
+  const [showSavedHighlights, setShowSavedHighlights] = useState(() => {
+    const saved = localStorage.getItem('smash_english_show_saved_highlights');
+    return saved === null ? true : saved === 'true';
+  });
+  const [highlightScope, setHighlightScope] = useState<'global' | 'notebook'>(() => {
+    return (localStorage.getItem('smash_english_highlight_scope') as 'global' | 'notebook') || 'global';
+  });
   
   const resultsEndRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +139,40 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       return () => clearTimeout(timer);
     }
   }, [highlightedWord, text, inputMode]);
+
+  // Fetch saved words for highlighting
+  useEffect(() => {
+    localStorage.setItem('smash_english_show_saved_highlights', showSavedHighlights.toString());
+    localStorage.setItem('smash_english_highlight_scope', highlightScope);
+  }, [showSavedHighlights, highlightScope]);
+
+  useEffect(() => {
+    const fetchSavedWords = async () => {
+      try {
+        const data = await getSavedWordsService();
+        setSavedWordsList(data.words);
+        updateActiveHighlights(data.words, highlightScope);
+      } catch (err) {
+        console.error('Failed to fetch saved words:', err);
+      }
+    };
+    fetchSavedWords();
+  }, []);
+
+  const updateActiveHighlights = (words: any[], scope: 'global' | 'notebook') => {
+    if (scope === 'global') {
+      const wordSet = new Set(words.map(w => w.word.toLowerCase().trim()));
+      setSavedWordsSet(wordSet);
+    } else {
+      const filtered = words.filter(w => w.reading_id === notebookId);
+      const wordSet = new Set(filtered.map(w => w.word.toLowerCase().trim()));
+      setSavedWordsSet(wordSet);
+    }
+  };
+
+  useEffect(() => {
+    updateActiveHighlights(savedWordsList, highlightScope);
+  }, [highlightScope, notebookId, savedWordsList]);
 
   // Fetch full details if content is missing
   useEffect(() => {
@@ -137,6 +244,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       timestamp: Date.now()
     };
     setResults(prev => [...prev, newItem]);
+    setIsSidebarOpen(true); // Automatically open panel on mobile
   };
 
   const handleAnalyze = async (sentence: string) => {
@@ -182,8 +290,12 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     try {
       // Build internal reference URL with word for highlighting
       const currentUrl = notebookId ? `/intensive-reading?id=${notebookId}&word=${encodeURIComponent(cleanWord)}` : undefined;
-      const result = await quickLookupService(cleanWord, context, currentUrl);
+      const result = await quickLookupService(cleanWord, context, currentUrl, notebookId || undefined);
       addResult('dictionary', { ...result, originalSentence: context });
+      
+      // Update local set to highlight immediately after saving
+      const newWord = { word: cleanWord, reading_id: notebookId };
+      setSavedWordsList(prev => [...prev, newWord]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -193,7 +305,9 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
 
   const renderWord = (word: string, context: string, punct?: string) => {
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase().trim();
-    const isHighlighted = highlightedWord && cleanWord === highlightedWord.toLowerCase();
+    const isDeepLinkHighlighted = highlightedWord && cleanWord === highlightedWord.toLowerCase();
+    const isSavedHighlighted = showSavedHighlights && savedWordsSet.has(cleanWord);
+    const isHighlighted = isDeepLinkHighlighted || isSavedHighlighted;
 
     return (
       <React.Fragment key={Math.random()}>
@@ -201,7 +315,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
           data-word={cleanWord}
           className={`px-0.5 cursor-pointer transition-all border-b border-dashed border-gray-300 dark:border-gray-600 rounded ${
             isHighlighted 
-              ? 'bg-yellow-400 dark:bg-yellow-600 text-black dark:text-white font-bold ring-2 ring-yellow-400/50 shadow-sm' 
+              ? (isDeepLinkHighlighted ? 'bg-yellow-400 dark:bg-yellow-600/60 ring-2 ring-yellow-400/50' : 'bg-yellow-400/60 dark:bg-yellow-600/30 ring-1 ring-yellow-400/20') + ' text-black dark:text-white font-bold'
               : 'hover:bg-yellow-200 dark:hover:bg-yellow-900/50 hover:border-yellow-400'
           }`}
           onClick={(e) => {
@@ -224,28 +338,35 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     return sentenceParts.map((sentence, sIdx) => {
       if (!sentence.trim()) return sentence;
 
+      // Always process into words for highlighting
+      const words = sentence.split(/(\s+)/);
+      const interactiveContent = (
+        <React.Fragment>
+          {words.map((part, wIdx) => {
+            if (/\s+/.test(part)) return <React.Fragment key={wIdx}>{part}</React.Fragment>;
+            const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
+            if (match) {
+              return <React.Fragment key={wIdx}>{renderWord(match[1], sentence, match[2])}</React.Fragment>;
+            }
+            return <React.Fragment key={wIdx}>{part}</React.Fragment>;
+          })}
+        </React.Fragment>
+      );
+
       if (studyMode === 'analysis') {
         return (
-          <SentenceAnalysisWrapper key={sIdx} content={sentence}>
-            {sentence}
+          <SentenceAnalysisWrapper 
+            key={sIdx} 
+            content={sentence} 
+            onAnalyze={handleAnalyze} 
+            onTranslate={handleTranslate}
+          >
+            {interactiveContent}
           </SentenceAnalysisWrapper>
         );
       }
 
-      // Lookup mode: split into words
-      const words = sentence.split(/(\s+)/);
-      return (
-        <React.Fragment key={sIdx}>
-          {words.map((part) => {
-            if (/\s+/.test(part)) return part;
-            const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
-            if (match) {
-              return renderWord(match[1], sentence, match[2]);
-            }
-            return part;
-          })}
-        </React.Fragment>
-      );
+      return <React.Fragment key={sIdx}>{interactiveContent}</React.Fragment>;
     });
   };
 
@@ -270,37 +391,6 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       }
     }
     return node;
-  };
-
-  /**
-   * Precise Sentence-level Wrapper
-   */
-  const SentenceAnalysisWrapper: React.FC<{ children: any, content: string }> = ({ children, content }) => {
-    return (
-      <span className="group/sentence relative inline transition-all duration-300 hover:bg-pink-500/10 dark:hover:bg-pink-500/20 rounded px-1 -mx-1 cursor-default">
-        {children}
-        <span className="absolute -top-11 left-1/2 -translate-x-1/2 flex items-center gap-0.5 opacity-0 group-hover/sentence:opacity-100 translate-y-1 group-hover/sentence:translate-y-0 transition-all duration-300 z-[40] bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full scale-95 group-hover/sentence:scale-100 pointer-events-none group-hover/sentence:pointer-events-auto">
-          {/* Invisible bridge to catch hover when moving mouse to the toolbar */}
-          <div className="absolute -bottom-3 left-0 right-0 h-4 bg-transparent" />
-          
-          <button
-            onClick={() => handleAnalyze(content)}
-            className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>语法分析</span>
-          </button>
-          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5 relative z-10" />
-          <button
-            onClick={() => handleTranslate(content)}
-            className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 relative z-10"
-          >
-            <Languages className="w-3.5 h-3.5" />
-            <span>极速翻译</span>
-          </button>
-        </span>
-      </span>
-    );
   };
 
   /**
@@ -379,9 +469,9 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white dark:bg-black">
+    <div className="flex flex-col md:flex-row h-full w-full overflow-hidden bg-white dark:bg-black relative">
       {/* Left Column: Article View */}
-      <div className="flex-1 overflow-y-auto border-r border-gray-100 dark:border-gray-800 scroll-smooth">
+      <div className="flex-1 overflow-y-auto border-r border-gray-100 dark:border-gray-800 scroll-smooth pb-20 md:pb-0">
         <div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900/50">
           <div className="max-w-5xl mx-auto px-6 py-4 md:px-12 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
@@ -426,29 +516,69 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                 </div>
               )}
 
-              <div className="hidden md:flex items-center p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+              <div className="flex items-center p-0.5 sm:p-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm shrink-0">
                 <button
                   onClick={() => setStudyMode('lookup')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+                  className={`px-2 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                     studyMode === 'lookup' 
                       ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5' 
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                   }`}
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  单词模式
+                  <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span>单词<span className="hidden sm:inline">模式</span></span>
                 </button>
                 <button
                   onClick={() => setStudyMode('analysis')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+                  className={`px-2 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                     studyMode === 'analysis' 
                       ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5' 
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  解析模式
+                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span>解析<span className="hidden sm:inline">模式</span></span>
                 </button>
+              </div>
+
+              <div className="flex items-center gap-1 ml-1 sm:ml-2 p-1 bg-white/50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800">
+                <button
+                  onClick={() => setShowSavedHighlights(!showSavedHighlights)}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] sm:text-xs font-bold ${
+                    showSavedHighlights 
+                      ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400' 
+                      : 'bg-transparent border-transparent text-gray-400'
+                  }`}
+                  title={showSavedHighlights ? "关闭收藏词高亮" : "开启收藏词高亮"}
+                >
+                  <History className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span className="hidden sm:inline">已存高亮</span>
+                </button>
+                
+                {showSavedHighlights && (
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg">
+                    <button
+                      onClick={() => setHighlightScope('global')}
+                      className={`px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-bold transition-all ${
+                        highlightScope === 'global'
+                          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      全局
+                    </button>
+                    <button
+                      onClick={() => setHighlightScope('notebook')}
+                      className={`px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-bold transition-all ${
+                        highlightScope === 'notebook'
+                          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      本篇
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -523,27 +653,55 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
         </div>
       </div>
 
-      {/* Right Column: Results Sidebar */}
-      <div className="w-[450px] 2xl:w-[550px] bg-gray-50 dark:bg-[#0d1117] flex flex-col border-l border-gray-100 dark:border-gray-800 transition-all duration-300">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm bg-white dark:bg-[#0d1117] z-10 transition-colors">
+      {/* Right Column: Results Sidebar / Mobile Bottom Sheet */}
+      <div className={`
+        fixed inset-x-0 bottom-0 z-[45] md:relative md:inset-auto md:w-[450px] 2xl:w-[550px]
+        bg-gray-50 dark:bg-[#0d1117] flex flex-col 
+        border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-800 
+        transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+        ${isSidebarOpen ? 'h-[75vh] translate-y-0' : 'h-[60px] md:h-full translate-y-0 md:translate-y-0'}
+      `}>
+        {/* Mobile Pull Handle / Header */}
+        <div 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="md:hidden flex flex-col items-center justify-center py-2 cursor-pointer bg-white dark:bg-[#0d1117] border-b border-gray-100 dark:border-gray-800/50 shrink-0"
+        >
+          <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mb-1" />
+          <div className="flex items-center gap-2">
+            <Sparkles className={`w-4 h-4 text-pink-500 transition-transform duration-500 ${isSidebarOpen ? 'rotate-180' : ''}`} />
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+              {results.length > 0 ? `AI 分析结果 (${results.length})` : 'AI 分析面板'}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm bg-white dark:bg-[#0d1117] z-10 transition-colors shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-pink-500" />
             <h2 className="font-bold text-gray-800 dark:text-gray-200">AI 分析面板</h2>
           </div>
-          {results.length > 0 && (
-            <button
-              onClick={() => setResults([])}
-              className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1 transition-colors"
+          <div className="flex items-center gap-4">
+            {results.length > 0 && (
+              <button
+                onClick={() => setResults([])}
+                className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                清除记录
+              </button>
+            )}
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden p-1 text-gray-400 hover:text-gray-600"
             >
-              <X className="w-3.5 h-3.5" />
-              清除记录
+              <X className="w-5 h-5" />
             </button>
-          )}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth transition-all">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth transition-all no-scrollbar">
           {results.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 space-y-4">
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 space-y-4 py-10">
               <History className="w-16 h-16 text-gray-300 dark:text-gray-600" />
               <div className="space-y-1">
                 <p className="text-lg font-bold">暂无分析记录</p>
@@ -585,6 +743,14 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
           <div ref={resultsEndRef} />
         </div>
       </div>
+
+      {/* Backdrop for mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 transition-all duration-500"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };

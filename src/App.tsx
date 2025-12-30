@@ -384,15 +384,28 @@ const App: React.FC = () => {
 
     // 3. Perform Quick Lookup
     try {
-      // Find videoId if in youtube tab
       let currentUrl = window.location.href;
-      if (activeTab === 'youtube' && playerRef.current?.getVideoData) {
-        const videoData = playerRef.current.getVideoData();
-        const vId = videoData.video_id;
-        const currentTime = Math.floor(playerRef.current.getCurrentTime());
-        currentUrl = `https://www.youtube.com/watch?v=${vId}&t=${currentTime}s`;
+      let readingId: number | undefined = undefined;
+      let videoId: number | undefined = undefined;
+
+      if (activeTab === 'reading' && selectedReadingNotebook?.id) {
+        readingId = selectedReadingNotebook.id;
+        currentUrl = `/intensive-reading?id=${readingId}&word=${encodeURIComponent(cleanWord)}`;
+      } else if (activeTab === 'youtube') {
+        if (selectedNotebook?.id) {
+          videoId = selectedNotebook.id;
+        }
+        if (playerRef.current?.getVideoData) {
+          const videoData = playerRef.current.getVideoData();
+          const vId = videoData.video_id;
+          const currentTime = Math.floor(playerRef.current.getCurrentTime());
+          currentUrl = `https://www.youtube.com/watch?v=${vId}&t=${currentTime}s`;
+        } else if (selectedNotebook?.video_id) {
+          currentUrl = `https://www.youtube.com/watch?v=${selectedNotebook.video_id}`;
+        }
       }
-      const result = await quickLookupService(cleanWord, context, currentUrl);
+      
+      const result = await quickLookupService(cleanWord, context, currentUrl, readingId, videoId);
       const resultWithSentence = { ...result, originalSentence: context };
       setQuickLookupCache(prev => ({ ...prev, [cacheKey]: result }));
 

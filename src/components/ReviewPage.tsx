@@ -224,17 +224,17 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-8 pb-32 animate-in fade-in slide-in-from-right-4 duration-500 px-4">
       {/* Top Header */}
-      <div className="flex items-center justify-between sticky top-0 z-30 bg-gray-50/80 dark:bg-black/80 backdrop-blur-xl py-4 border-b border-gray-100 dark:border-gray-800 px-2">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 border-b border-gray-100 dark:border-gray-800 px-2">
         <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors group">
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium hidden md:inline">退出挑战</span>
         </button>
 
-        <div className="flex items-center gap-1 p-1 bg-gray-200/50 dark:bg-gray-800/50 rounded-xl">
-          <button onClick={() => setReviewMode('article')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewMode === 'article' ? 'bg-white dark:bg-gray-700 text-pink-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+        <div className="flex items-center gap-1 p-1 bg-gray-200/50 dark:bg-gray-800/50 rounded-xl w-full md:w-auto justify-center">
+          <button onClick={() => setReviewMode('article')} className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewMode === 'article' ? 'bg-white dark:bg-gray-700 text-pink-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <BookType className="w-4 h-4" /> AI 文章模式
           </button>
-          <button onClick={() => setReviewMode('cards')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewMode === 'cards' ? 'bg-white dark:bg-gray-700 text-pink-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button onClick={() => setReviewMode('cards')} className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewMode === 'cards' ? 'bg-white dark:bg-gray-700 text-pink-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <LayoutGrid className="w-4 h-4" /> 单词卡片模式
           </button>
         </div>
