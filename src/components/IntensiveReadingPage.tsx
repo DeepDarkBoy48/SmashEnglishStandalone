@@ -392,12 +392,6 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
             handleWordClick(word, context);
             if (highlightedWord) setHighlightedWord('');
           }}
-          onDoubleClick={(e) => {
-            if (!isNormalMode) return; // 解析模式下已通过单击处理
-            e.stopPropagation();
-            handleWordClick(word, context);
-            if (highlightedWord) setHighlightedWord('');
-          }}
         >
           {word}
         </span>
