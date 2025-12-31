@@ -43,13 +43,17 @@ interface IntensiveReadingPageProps {
     children: any, 
     content: string,
     onAnalyze: (content: string) => void,
-    onTranslate: (content: string) => void
-  }> = ({ children, content, onAnalyze, onTranslate }) => {
-    const [isMobileOpen, setIsMobileOpen] = useState(false);
+    onTranslate: (content: string) => void,
+    isActive: boolean,
+    isTouchDevice: boolean,
+    isOpen: boolean,
+    onToggle: () => void
+  }> = ({ children, content, onAnalyze, onTranslate, isActive, isTouchDevice, isOpen, onToggle }) => {
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0, show: false });
     const menuRef = useRef<HTMLDivElement>(null);
 
     const handleContextMenu = (e: React.MouseEvent) => {
+      if (!isActive) return;
       // Desktop only check
       if (window.innerWidth < 768) return;
       
@@ -79,12 +83,12 @@ interface IntensiveReadingPageProps {
 
     return (
       <span 
-        className={`group/sentence relative inline transition-all duration-300 ${isMobileOpen ? 'bg-pink-500/10' : 'hover:bg-pink-500/10 dark:hover:bg-pink-500/20'} rounded px-1 -mx-1 cursor-pointer`}
+        className={`group/sentence relative inline transition-all duration-300 ${isActive ? (isOpen ? 'bg-pink-500/10' : 'hover:bg-pink-500/10 dark:hover:bg-pink-500/20 cursor-pointer') : ''} rounded px-1 -mx-1`}
         onClick={(e) => {
+          if (!isActive) return;
           e.stopPropagation();
-          // Mobile only: toggle tooltip
-          if (window.innerWidth < 768) {
-            setIsMobileOpen(!isMobileOpen);
+          if (isTouchDevice) {
+            onToggle();
           }
         }}
         onContextMenu={handleContextMenu}
@@ -92,38 +96,38 @@ interface IntensiveReadingPageProps {
         {children}
         
         {/* Mobile Tooltip - Only show on small screens */}
-        <span className={`md:hidden absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-0.5 transition-all duration-500 z-[40] bg-white dark:bg-gray-900 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full 
-          ${isMobileOpen 
-            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-            : 'opacity-0 translate-y-2 scale-90 pointer-events-none'
-          }`}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAnalyze(content);
-              setIsMobileOpen(false);
-            }}
-            className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>语法分析</span>
-          </button>
-          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onTranslate(content);
-              setIsMobileOpen(false);
-            }}
-            className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
-          >
-            <Languages className="w-3.5 h-3.5" />
-            <span>极速翻译</span>
-          </button>
-        </span>
+        {isActive && (
+          <span className={`absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-0.5 transition-all duration-500 z-[40] bg-white dark:bg-gray-900 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-100 dark:border-gray-800 p-1 rounded-full 
+            ${isOpen 
+              ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+              : 'opacity-0 translate-y-2 scale-90 pointer-events-none'
+            }`}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnalyze(content);
+              }}
+              className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>分析</span>
+            </button>
+            <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTranslate(content);
+              }}
+              className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              <span>翻译</span>
+            </button>
+          </span>
+        )}
 
-        {/* Desktop Context Menu */}
-        {menuPos.show && (
+        {/* Tooltip for touch devices or Context Menu for mouse devices */}
+        {isActive && !isTouchDevice && menuPos.show && (
           <div 
             ref={menuRef}
             style={{ 
@@ -143,7 +147,7 @@ interface IntensiveReadingPageProps {
               className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors w-full text-left"
             >
               <Sparkles className="w-4 h-4" />
-              语法分析
+              句法分析
             </button>
             <div className="h-[1px] bg-gray-100 dark:bg-gray-800" />
             <button
@@ -170,7 +174,46 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [title, setTitle] = useState(initialNotebookData?.title || '');
   const [highlightedWord, setHighlightedWord] = useState(initialHighlightedWord || '');
-  const [studyMode, setStudyMode] = useState<'normal' | 'analysis'>('analysis');
+  
+  // Use pointer capability for smarter device detection
+  const [isTouchDevice, setIsTouchDevice] = useState(() => 
+    window.matchMedia('(pointer: coarse)').matches
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia('(pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsTouchDevice(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const [studyMode, setStudyMode] = useState<'normal' | 'word' | 'sentence' | 'analysis'>(() => {
+    return isTouchDevice ? 'word' : 'analysis';
+  });
+  const [showMobileResults, setShowMobileResults] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [activeSentenceKey, setActiveSentenceKey] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Mode change or outside click should clear active sentence
+  useEffect(() => {
+    setActiveSentenceKey(null);
+  }, [studyMode]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowSettingsMenu(false);
+      }
+      // Clear sentence selection when clicking background
+      if (activeSentenceKey && (e.target as HTMLElement).closest('.group\\/sentence') === null) {
+         setActiveSentenceKey(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettingsMenu, activeSentenceKey]);
   
   const [notebookId, setNotebookId] = useState<number | null>(initialNotebookData?.id || null);
   const [isSaving, setIsSaving] = useState(false);
@@ -304,7 +347,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     }
   };
 
-  const addResult = (type: ResultItem['type'], data: any) => {
+   const addResult = (type: ResultItem['type'], data: any) => {
     const newItem: ResultItem = {
       id: Math.random().toString(36).substr(2, 9),
       type,
@@ -312,6 +355,11 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       timestamp: Date.now()
     };
     setResults(prev => [...prev, newItem]);
+    
+    // Auto-open mobile results
+    if (window.innerWidth < 1024) {
+      setShowMobileResults(true);
+    }
   };
 
   const handleAnalyze = async (sentence: string) => {
@@ -346,7 +394,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   
   // handleSaveNotebook removed - integrated into handleStartReading
 
-  const handleWordClick = async (word: string, context: string) => {
+   const handleWordClick = async (word: string, context: string) => {
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
     if (!cleanWord) return;
 
@@ -370,24 +418,27 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     }
   };
 
-  const renderWord = (word: string, context: string, punct?: string) => {
+   const renderWord = (word: string, context: string, punct?: string) => {
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase().trim();
     const isDeepLinkHighlighted = highlightedWord && cleanWord === highlightedWord.toLowerCase();
     const isSavedHighlighted = showSavedHighlights && savedWordsSet.has(cleanWord);
     const isHighlighted = isDeepLinkHighlighted || isSavedHighlighted;
-    const isNormalMode = studyMode === 'normal';
+    const isWordMode = studyMode === 'word';
+    const isSentenceMode = studyMode === 'sentence';
+    const isAnalysisMode = studyMode === 'analysis';
+    const canInteract = isWordMode || isAnalysisMode;
 
     return (
       <React.Fragment key={Math.random()}>
         <span
           data-word={cleanWord}
-          className={`px-0.5 transition-all rounded ${isNormalMode ? 'cursor-text' : 'cursor-pointer'} ${
+          className={`px-0.5 transition-all rounded ${canInteract ? 'cursor-pointer' : (isSentenceMode ? '' : 'cursor-text')} ${
             isHighlighted 
               ? (isDeepLinkHighlighted ? 'bg-yellow-400 dark:bg-yellow-600/60 ring-2 ring-yellow-400/50' : 'bg-yellow-400/60 dark:bg-yellow-600/30 ring-1 ring-yellow-400/20') + ' text-black dark:text-white font-bold'
-              : (isNormalMode ? '' : 'border-b border-dashed border-gray-300 dark:border-gray-600 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 hover:border-yellow-400')
+              : (canInteract ? 'border-b border-dashed border-gray-300 dark:border-gray-600 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 hover:border-yellow-400' : '')
           }`}
           onClick={(e) => {
-            if (isNormalMode) return; // 普通模式下不处理单击，以便正常选择文本
+            if (!canInteract) return;
             e.stopPropagation();
             handleWordClick(word, context);
             if (highlightedWord) setHighlightedWord('');
@@ -400,7 +451,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     );
   };
 
-  const makeTextInteractive = (text: string) => {
+   const makeTextInteractive = (text: string) => {
     // Regex to split by sentences (. or ?) while keeping the separators
     const sentenceParts = text.split(/(?<=[.!?])\s+/);
     
@@ -422,20 +473,23 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
         </React.Fragment>
       );
 
-      if (studyMode === 'analysis') {
-        return (
-          <SentenceAnalysisWrapper 
-            key={sIdx} 
-            content={sentence} 
-            onAnalyze={handleAnalyze} 
-            onTranslate={handleTranslate}
-          >
-            {interactiveContent}
-          </SentenceAnalysisWrapper>
-        );
-      }
+      const sentenceKey = `${sentence}-${sIdx}`;
+      const isCurrentlyActive = activeSentenceKey === sentenceKey;
 
-      return <React.Fragment key={sIdx}>{interactiveContent}</React.Fragment>;
+      return (
+        <SentenceAnalysisWrapper 
+          key={sIdx} 
+          content={sentence} 
+          onAnalyze={handleAnalyze} 
+          onTranslate={handleTranslate}
+          isActive={studyMode === 'sentence' || studyMode === 'analysis'}
+          isTouchDevice={isTouchDevice}
+          isOpen={isCurrentlyActive}
+          onToggle={() => setActiveSentenceKey(isCurrentlyActive ? null : sentenceKey)}
+        >
+          {interactiveContent}
+        </SentenceAnalysisWrapper>
+      );
     });
   };
 
@@ -538,10 +592,10 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   }
 
   return (
-    <div className="flex justify-center h-full w-full bg-gray-50 dark:bg-black/90">
-      <div className="w-full max-w-[1440px] flex h-full bg-white dark:bg-black border-x border-gray-100 dark:border-gray-900 shadow-2xl relative overflow-hidden">
-        {/* Left Column: Article View (2/3) */}
-        <div className="flex-[2] overflow-y-auto scroll-smooth relative border-r border-gray-100 dark:border-gray-800">
+    <div className="flex justify-center h-full w-full bg-gray-50 dark:bg-black/90 relative overflow-hidden">
+      <div className="w-full max-w-[1440px] flex flex-col lg:flex-row h-full bg-white dark:bg-black border-x border-gray-100 dark:border-gray-900 shadow-2xl relative overflow-hidden">
+        {/* Left Column: Article View (2/3 on Desktop) */}
+        <div className="flex-[2] overflow-y-auto scroll-smooth relative border-r border-gray-100 dark:border-gray-800 flex flex-col">
           <div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900/50">
             <div className="w-full px-6 py-4 flex items-center">
               {/* Left side: Back Button */}
@@ -587,76 +641,179 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
               </div>
 
               {/* Right side: Controls */}
-              <div className="flex-none flex items-center justify-end gap-3 shrink-0 ml-2">
-                <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800 transition-all shrink-0">
-                  <button
-                    onClick={() => setShowSavedHighlights(!showSavedHighlights)}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${
-                      showSavedHighlights 
-                        ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400' 
-                        : 'bg-transparent border-transparent text-gray-400'
-                    }`}
-                    title={showSavedHighlights ? "关闭收藏词高亮" : "开启收藏词高亮"}
-                  >
-                    <History className="w-3.5 h-3.5" />
-                    <span className="hidden lg:inline">已存高亮</span>
-                  </button>
-                  
-                  {showSavedHighlights && (
-                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg overflow-hidden animate-in fade-in slide-in-from-right-1 duration-300">
-                      <button
-                        onClick={() => setHighlightScope('global')}
-                        className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
-                          highlightScope === 'global'
-                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                      >
-                        全
-                      </button>
-                      <button
-                        onClick={() => setHighlightScope('notebook')}
-                        className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
-                          highlightScope === 'notebook'
-                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                      >
-                        本
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div className="flex-none flex items-center justify-end gap-2 shrink-0 ml-2 relative" ref={menuRef}>
+                  {/* Desktop View: Full controls */}
+                  {!isTouchDevice ? (
+                      <div className="flex items-center gap-3">
+                          {/* Highlighting Controls */}
+                          <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800 transition-all shrink-0">
+                              <button
+                                  onClick={() => setShowSavedHighlights(!showSavedHighlights)}
+                                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${
+                                      showSavedHighlights 
+                                          ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400' 
+                                          : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  }`}
+                                  title={showSavedHighlights ? '点击关闭已存高亮' : '点击开启已存高亮'}
+                              >
+                                  <History className="w-3.5 h-3.5" />
+                                  <span className="hidden lg:inline">已存高亮</span>
+                              </button>
+                              
+                              {showSavedHighlights && (
+                                  <div className="flex items-center gap-0.5 ml-1 px-1 border-l border-gray-200 dark:border-gray-700">
+                                      <button
+                                          onClick={() => setHighlightScope('global')}
+                                          className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
+                                              highlightScope === 'global'
+                                                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                                                  : 'text-gray-400 hover:text-gray-600'
+                                          }`}
+                                      >
+                                          全
+                                      </button>
+                                      <button
+                                          onClick={() => setHighlightScope('notebook')}
+                                          className={`px-1.5 py-1 rounded-md text-[9px] font-bold transition-all ${
+                                              highlightScope === 'notebook'
+                                                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                                                  : 'text-gray-400 hover:text-gray-600'
+                                          }`}
+                                      >
+                                          本
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
 
-                <div className="flex items-center p-0.5 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm shrink-0">
-                  <button
-                    onClick={() => setStudyMode('normal')}
-                    className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                      studyMode === 'normal' 
-                        ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
-                        : 'text-gray-400'
-                    }`}
-                  >
-                    <BookOpen className="w-3 h-3" />
-                    <span>普通</span>
-                  </button>
-                  <button
-                    onClick={() => setStudyMode('analysis')}
-                    className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                      studyMode === 'analysis' 
-                        ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
-                        : 'text-gray-400'
-                    }`}
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>解析</span>
-                  </button>
-                </div>
+                          {/* Mode Switcher */}
+                          <div className="flex items-center p-0.5 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm shrink-0 overflow-hidden">
+                              <button
+                                  onClick={() => setStudyMode('normal')}
+                                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${
+                                      studyMode === 'normal' 
+                                          ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
+                                          : 'text-gray-400'
+                                  }`}
+                              >
+                                  <BookOpen className="w-3 h-3" />
+                                  <span>普通</span>
+                              </button>
+                              <button
+                                  onClick={() => setStudyMode('analysis')}
+                                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${
+                                      studyMode === 'analysis' 
+                                          ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm' 
+                                          : 'text-gray-400'
+                                  }`}
+                              >
+                                  <Sparkles className="w-3 h-3" />
+                                  <span>解析</span>
+                              </button>
+                          </div>
+                      </div>
+                  ) : (
+                      /* Mobile View: Toggler for Dropdown */
+                      <div className="flex items-center gap-2">
+                          <button
+                              onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+                                  showSettingsMenu 
+                                      ? 'bg-pink-500 text-white border-pink-500 shadow-lg' 
+                                      : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800'
+                              }`}
+                          >
+                              {studyMode === 'normal' && <BookOpen className="w-3.5 h-3.5" />}
+                              {studyMode === 'word' && <Sparkles className={`w-3.5 h-3.5 ${showSettingsMenu ? 'text-white' : 'text-pink-500'}`} />}
+                              {studyMode === 'sentence' && <History className="w-3.5 h-3.5" />}
+                              <span className="text-[11px] font-bold">
+                                  {studyMode === 'normal' ? '普通' : (studyMode === 'word' ? '单词' : '句子')}模式
+                              </span>
+                              <div className={`w-1.5 h-1.5 rounded-full ${showSavedHighlights ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+                          </button>
+
+                          {/* Mobile Settings Dropdown */}
+                          {showSettingsMenu && (
+                              <div className="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800 p-2 z-[101] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200">
+                                  {/* Study Mode Section */}
+                                  <div className="mb-3">
+                                      <p className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">交互模式</p>
+                                      <div className="space-y-1">
+                                          <button
+                                              onClick={() => { setStudyMode('normal'); setShowSettingsMenu(false); }}
+                                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${studyMode === 'normal' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                          >
+                                              <div className="flex items-center gap-3">
+                                                  <BookOpen className="w-4 h-4" />
+                                                  <span className="text-sm font-bold">普通模式</span>
+                                              </div>
+                                              {studyMode === 'normal' && <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />}
+                                          </button>
+                                          <button
+                                              onClick={() => { setStudyMode('word'); setShowSettingsMenu(false); }}
+                                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${studyMode === 'word' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                          >
+                                              <div className="flex items-center gap-3">
+                                                  <Sparkles className="w-4 h-4" />
+                                                  <span className="text-sm font-bold">单词模式</span>
+                                              </div>
+                                              {studyMode === 'word' && <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />}
+                                          </button>
+                                          <button
+                                              onClick={() => { setStudyMode('sentence'); setShowSettingsMenu(false); }}
+                                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${studyMode === 'sentence' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                          >
+                                              <div className="flex items-center gap-3">
+                                                  <History className="w-4 h-4" />
+                                                  <span className="text-sm font-bold">句子模式</span>
+                                              </div>
+                                              {studyMode === 'sentence' && <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />}
+                                          </button>
+                                      </div>
+                                  </div>
+
+                                  <div className="h-[1px] bg-gray-100 dark:bg-gray-800 mx-2 mb-2" />
+
+                                  {/* Highlight Section */}
+                                  <div>
+                                      <p className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">词汇高亮</p>
+                                      <button
+                                          onClick={() => setShowSavedHighlights(!showSavedHighlights)}
+                                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-bold text-sm"
+                                      >
+                                          <span>显示已存单词</span>
+                                          <div className={`w-9 h-5 rounded-full transition-all relative ${showSavedHighlights ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${showSavedHighlights ? 'left-5' : 'left-1'}`} />
+                                          </div>
+                                      </button>
+                                      
+                                      {showSavedHighlights && (
+                                          <div className="flex p-1 mt-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                                              <button
+                                                  onClick={() => setHighlightScope('global')}
+                                                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${highlightScope === 'global' ? 'bg-white dark:bg-gray-700 text-gray-900 shadow-sm' : 'text-gray-400'}`}
+                                              >
+                                                  全局
+                                              </button>
+                                              <button
+                                                  onClick={() => setHighlightScope('notebook')}
+                                                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${highlightScope === 'notebook' ? 'bg-white dark:bg-gray-700 text-gray-900 shadow-sm' : 'text-gray-400'}`}
+                                              >
+                                                  本页
+                                              </button>
+                                          </div>
+                                      )}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  )}
               </div>
             </div>
           </div>
 
-          <div className="w-full max-w-3xl mx-auto px-8 py-10 space-y-8">
+          <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="w-full max-w-3xl mx-auto px-6 md:px-10 py-8 lg:py-12 space-y-8">
             {isDetailLoading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 text-pink-500 animate-spin opacity-50" />
@@ -722,11 +879,13 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                 </ReactMarkdown>
               </div>
             )}
-          </div>
+           </div>
         </div>
+      </div>
 
-        {/* Right Column: AI Analysis Panel (1/3) */}
-        <div className="flex-[1] flex flex-col bg-gray-50 dark:bg-[#0d1117] h-full">
+        {/* Right Column: AI Analysis Panel (1/3 on Desktop) */}
+        {/* Desktop Panel */}
+        <div className="hidden lg:flex flex-[1] flex flex-col bg-gray-50 dark:bg-[#0d1117] h-full border-l border-gray-100 dark:border-gray-800">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800 shadow-sm bg-white/50 dark:bg-transparent shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-pink-500 to-rose-400 rounded-lg ">
@@ -792,6 +951,86 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
             <div ref={resultsEndRef} />
           </div>
         </div>
+
+        {/* Mobile/Tablet Results Bottom Sheet */}
+        <div className={`lg:hidden fixed inset-0 z-[100] transition-all duration-500 ${showMobileResults ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          {/* Backdrop */}
+          <div 
+            className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-500 ${showMobileResults ? 'opacity-100' : 'opacity-0'}`}
+            onClick={() => setShowMobileResults(false)}
+          />
+          
+          {/* Sheet */}
+          <div className={`absolute bottom-0 left-0 right-0 bg-white dark:bg-[#0d1117] rounded-t-[2.5rem] shadow-2xl transition-transform duration-500 ease-out border-t border-gray-100 dark:border-gray-800 flex flex-col max-h-[85vh] ${showMobileResults ? 'translate-y-0' : 'translate-y-full'}`}>
+            <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
+               <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full mb-4" onClick={() => setShowMobileResults(false)} />
+               <div className="w-full px-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-pink-500" />
+                    <span className="font-bold text-gray-900 dark:text-gray-100 italic">AI 分析结果</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {results.length > 0 && (
+                      <button onClick={() => setResults([])} className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1">
+                        <X className="w-3 h-3" /> 清空
+                      </button>
+                    )}
+                    <button onClick={() => setShowMobileResults(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+               </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 no-scrollbar pb-10">
+              {results.length === 0 ? (
+                <div className="py-20 flex flex-col items-center justify-center text-center opacity-40">
+                  <History className="w-12 h-12 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">暂无分析记录</p>
+                  <p className="text-sm">在相应模式下点击单词或句子即可查看</p>
+                </div>
+              ) : (
+                results.slice().reverse().map((res) => (
+                  <div key={res.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {res.type === 'analysis' && <ResultDisplay result={res.data} compact={true} />}
+                    {res.type === 'dictionary' && <QuickLookupDisplay result={res.data} />}
+                    {res.type === 'translation' && (
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-100 dark:border-blue-900/50 p-6 shadow-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                            <Languages className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Quick Translation</span>
+                        </div>
+                        <p className="text-lg text-gray-800 dark:text-gray-100 leading-relaxed font-serif font-medium">
+                          {res.data.translation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+              {Object.entries(loadingStates).some(([_, loading]) => loading) && (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-8 h-8 animate-spin text-pink-500 opacity-50" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Floating FAB for Mobile results */}
+        {results.length > 0 && !showMobileResults && (
+          <button 
+            onClick={() => setShowMobileResults(true)}
+            className="lg:hidden fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-full shadow-[0_8px_30px_rgb(236,72,153,0.4)] flex items-center justify-center transition-all hover:scale-105 active:scale-95 animate-in zoom-in duration-300"
+          >
+            <Sparkles className="w-6 h-6" />
+            <span className="absolute -top-1 -right-1 bg-white dark:bg-gray-900 text-pink-500 text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border-2 border-pink-500 shadow-sm leading-none">
+              {results.length}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
