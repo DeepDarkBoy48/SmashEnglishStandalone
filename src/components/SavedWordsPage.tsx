@@ -18,7 +18,6 @@ export const SavedWordsPage: React.FC = () => {
   const [notes, setNotes] = useState<DailyNote[] | null>(null);
   const [selectedNote, setSelectedNote] = useState<{ note: DailyNote, words: SavedWord[] | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -68,7 +67,6 @@ export const SavedWordsPage: React.FC = () => {
 
   const handleSelectNote = async (note: DailyNote) => {
     setSelectedNote({ note, words: null });
-    setIsDetailLoading(true);
     try {
       const data = await getNoteDetailService(note.id);
       setSelectedNote(data);
@@ -76,7 +74,7 @@ export const SavedWordsPage: React.FC = () => {
       console.error(err);
       alert('加载详情失败，请稍后再试。');
     } finally {
-      setIsDetailLoading(false);
+      // Done loading
     }
   };
 
