@@ -17,7 +17,8 @@ import type {
   ReadingNotebookListResponse,
   ReadingNotebookUpdate,
   TodayReviewResponse,
-  FSRSFeedbackRequest
+  FSRSFeedbackRequest,
+  SavedWord
 } from "../types";
 
 // --- Public Services ---
@@ -78,6 +79,18 @@ export const summarizeDailyNoteService = (noteId: number): Promise<{ title: stri
 
 export const deleteSavedWordService = (wordId: number): Promise<any> => {
   return request.delete(`/fastapi/saved-words/${wordId}`);
+};
+
+export const createSavedWordService = (data: { word: string; context: string; url?: string; data?: any; note_id?: number }): Promise<SavedWord> => {
+  return request.post('/fastapi/saved-words', data) as Promise<SavedWord>;
+};
+
+export const updateSavedWordService = (wordId: number, data: Partial<{ word: string; context: string; url?: string; data?: any; note_id?: number }>): Promise<SavedWord> => {
+  return request.put(`/fastapi/saved-words/${wordId}`, data) as Promise<SavedWord>;
+};
+
+export const batchDeleteSavedWordsService = (wordIds: number[]): Promise<any> => {
+  return request.post('/fastapi/saved-words/batch-delete', { word_ids: wordIds });
 };
 
 // --- Video Notebook Services ---

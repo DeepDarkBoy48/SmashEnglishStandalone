@@ -3,8 +3,8 @@ import { Sparkles, Book, PenTool, Star, BookOpen } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
-  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading';
-  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading') => void;
+  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management';
+  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
@@ -86,6 +86,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
             >
               <PenTool className="w-3.5 h-3.5 hidden xs:block" />
               写作
+            </button>
+            <button
+              onClick={() => onNavigate('words-management')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'words-management'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <Book className="w-3.5 h-3.5 hidden xs:block" />
+              词库管理
             </button>
           </nav>
           
