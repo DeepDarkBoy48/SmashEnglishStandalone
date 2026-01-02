@@ -451,12 +451,17 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     );
   };
 
-   const makeTextInteractive = (text: string) => {
+    const makeTextInteractive = (text: string) => {
     // Regex to split by sentences (. or ?) while keeping the separators
-    const sentenceParts = text.split(/(?<=[.!?])\s+/);
+    // We use capturing group () to keep the whitespace in the resulting array
+    const sentenceParts = text.split(/((?<=[.!?])\s+)/);
     
     return sentenceParts.map((sentence, sIdx) => {
       if (!sentence.trim()) return sentence;
+      
+      // If the part doesn't contain any word characters (e.g. just a period or dots), 
+      // don't treat it as a sentence for analysis.
+      if (!/[a-zA-Z0-9]/.test(sentence)) return sentence;
 
       // Always process into words for highlighting
       const words = sentence.split(/(\s+)/);
