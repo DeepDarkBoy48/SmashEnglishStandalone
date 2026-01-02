@@ -952,7 +952,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                       </td>
                     ),
                     code: (props: any) => {
-                      const { children, className, node } = props;
+                      const { children, className } = props;
                       const hasLang = /language-(\w+)/.exec(className || '');
                       
                       if (!hasLang) {
