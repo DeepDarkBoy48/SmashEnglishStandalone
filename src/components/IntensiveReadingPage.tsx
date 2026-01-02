@@ -107,7 +107,7 @@ interface IntensiveReadingPageProps {
                 e.stopPropagation();
                 onAnalyze(content);
               }}
-              className="p-1.5 px-3 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
+              className="p-1.5 px-4 text-pink-600 dark:text-pink-400 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>分析</span>
@@ -118,7 +118,7 @@ interface IntensiveReadingPageProps {
                 e.stopPropagation();
                 onTranslate(content);
               }}
-              className="p-1.5 px-3 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
+              className="p-1.5 px-4 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500/20 rounded-full flex items-center gap-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95"
             >
               <Languages className="w-3.5 h-3.5" />
               <span>翻译</span>
@@ -451,71 +451,6 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     );
   };
 
-   const makeTextInteractive = (text: string) => {
-    // Regex to split by sentences (. or ?) while keeping the separators
-    const sentenceParts = text.split(/(?<=[.!?])\s+/);
-    
-    return sentenceParts.map((sentence, sIdx) => {
-      if (!sentence.trim()) return sentence;
-
-      // Always process into words for highlighting
-      const words = sentence.split(/(\s+)/);
-      const interactiveContent = (
-        <React.Fragment>
-          {words.map((part, wIdx) => {
-            if (/\s+/.test(part)) return <React.Fragment key={wIdx}>{part}</React.Fragment>;
-            const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
-            if (match) {
-              return <React.Fragment key={wIdx}>{renderWord(match[1], sentence, match[2])}</React.Fragment>;
-            }
-            return <React.Fragment key={wIdx}>{part}</React.Fragment>;
-          })}
-        </React.Fragment>
-      );
-
-      const sentenceKey = `${sentence}-${sIdx}`;
-      const isCurrentlyActive = activeSentenceKey === sentenceKey;
-
-      return (
-        <SentenceAnalysisWrapper 
-          key={sIdx} 
-          content={sentence} 
-          onAnalyze={handleAnalyze} 
-          onTranslate={handleTranslate}
-          isActive={studyMode === 'sentence' || studyMode === 'analysis'}
-          isTouchDevice={isTouchDevice}
-          isOpen={isCurrentlyActive}
-          onToggle={() => setActiveSentenceKey(isCurrentlyActive ? null : sentenceKey)}
-        >
-          {interactiveContent}
-        </SentenceAnalysisWrapper>
-      );
-    });
-  };
-
-  const makeInteractive = (node: any): any => {
-    if (typeof node === 'string') {
-      return makeTextInteractive(node);
-    }
-    if (Array.isArray(node)) {
-      return node.map((child, i) => <React.Fragment key={i}>{makeInteractive(child)}</React.Fragment>);
-    }
-    if (React.isValidElement(node)) {
-      const type = node.type as any;
-      const children = (node.props as any).children;
-
-      const inlineTypes = ['strong', 'em', 'code', 'span', 'a', 'b', 'i', 'del'];
-      if (typeof type === 'string' && inlineTypes.includes(type)) {
-        const { children: _, ...otherProps } = node.props as any;
-        return React.cloneElement(node, {
-          ...otherProps,
-          children: makeInteractive(children)
-        });
-      }
-    }
-    return node;
-  };
-
   /**
    * Helper to extract plain text from React children for analysis context
    */
@@ -524,6 +459,129 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     if (Array.isArray(children)) return children.map(getPlainText).join('');
     if (React.isValidElement(children)) return getPlainText((children.props as any).children);
     return '';
+  };
+
+  /**
+   * Splits an array of React nodes into groups, where each group is a sentence.
+   * Handles cases where a sentence is split across nodes (e.g. bold/italic).
+   */
+  const splitNodesIntoSentences = (nodes: any[]): any[][] => {
+    const result: any[][] = [];
+    let currentSentence: any[] = [];
+
+    const flush = () => {
+      if (currentSentence.length > 0) {
+        result.push(currentSentence);
+        currentSentence = [];
+      }
+    };
+
+    for (let i = 0; i < nodes.length; i++) {
+      let node = nodes[i];
+
+      if (typeof node === 'string') {
+        // If current string starts with whitespace and previous node ended with punctuation, flush!
+        if (currentSentence.length > 0) {
+          const lastNode = currentSentence[currentSentence.length - 1];
+          const lastText = getPlainText(lastNode);
+          if (/[.!?]$/.test(lastText) && /^\s+/.test(node)) {
+            const match = node.match(/^\s+/);
+            const space = match![0];
+            const rest = node.slice(space.length);
+            
+            currentSentence.push(space);
+            flush();
+            node = rest;
+            if (!node) continue;
+          }
+        }
+
+        // Split string by sentence boundaries
+        const parts = node.split(/((?<=[.!?])\s+)/);
+        for (let j = 0; j < parts.length; j++) {
+          const part = parts[j];
+          if (j % 2 === 0) {
+            if (part) currentSentence.push(part);
+          } else {
+            currentSentence.push(part);
+            flush();
+          }
+        }
+      } else {
+        currentSentence.push(node);
+        // If this element contains a sentence boundary internally, it's hard to split.
+        // For simple formatting elements (bold/italic), we usually treat them as part of one sentence.
+      }
+    }
+    flush();
+    return result;
+  };
+
+  /**
+   * Recursively wraps words in a node with renderWord.
+   */
+  const renderWordsInNode = (node: any, context: string): any => {
+    if (typeof node === 'string') {
+      const words = node.split(/(\s+)/);
+      return words.map((part, wIdx) => {
+        if (/\s+/.test(part)) return <React.Fragment key={wIdx}>{part}</React.Fragment>;
+        const match = part.match(/^([a-zA-Z0-9'-]+)(.*)$/);
+        if (match) {
+          return <React.Fragment key={wIdx}>{renderWord(match[1], context, match[2])}</React.Fragment>;
+        }
+        return <React.Fragment key={wIdx}>{part}</React.Fragment>;
+      });
+    }
+
+    if (React.isValidElement(node)) {
+      const type = node.type as any;
+      const children = (node.props as any).children;
+      const inlineTypes = ['strong', 'em', 'code', 'span', 'a', 'b', 'i', 'del', 'u', 'mark'];
+
+      if (typeof type === 'string' && inlineTypes.includes(type)) {
+        const { children: _, ...otherProps } = node.props as any;
+        return React.cloneElement(node, {
+          ...otherProps,
+          key: Math.random(),
+          children: React.Children.map(children, child => renderWordsInNode(child, context))
+        });
+      }
+    }
+    return node;
+  };
+
+  const makeInteractive = (children: any): any => {
+    const nodes = React.Children.toArray(children);
+    const sentences = splitNodesIntoSentences(nodes);
+
+    return sentences.map((sentenceNodes, sIdx) => {
+      const sentenceContext = sentenceNodes.map(getPlainText).join('');
+      const sentenceTextTrimmed = sentenceContext.trim();
+      
+      if (!sentenceTextTrimmed) return sentenceNodes;
+
+      const sentenceKey = `${sentenceTextTrimmed}-${sIdx}`;
+      const isCurrentlyActive = activeSentenceKey === sentenceKey;
+
+      return (
+        <SentenceAnalysisWrapper 
+          key={sIdx} 
+          content={sentenceContext} 
+          onAnalyze={handleAnalyze} 
+          onTranslate={handleTranslate}
+          isActive={studyMode === 'sentence' || studyMode === 'analysis'}
+          isTouchDevice={isTouchDevice}
+          isOpen={isCurrentlyActive}
+          onToggle={() => setActiveSentenceKey(isCurrentlyActive ? null : sentenceKey)}
+        >
+          {sentenceNodes.map((node, nIdx) => (
+            <React.Fragment key={nIdx}>
+              {renderWordsInNode(node, sentenceContext)}
+            </React.Fragment>
+          ))}
+        </SentenceAnalysisWrapper>
+      );
+    });
   };
 
   if (inputMode) {
@@ -542,26 +600,26 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
           <div className="inline-flex items-center justify-center p-3 bg-pink-50 dark:bg-pink-950/50 rounded-2xl text-pink-600 dark:text-pink-400 mb-2">
             <BookOpen className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-50 font-serif">
+          <h1 className="text-3xl md:text-5xl font-black tracking-tight text-gray-900 dark:text-gray-50">
             精读模式
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-serif">
+          <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
             粘贴一段你想深入研读的英文文本，AI 将助你剖析每一个细节。
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-6 py-4 rounded-2xl bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-pink-500 dark:focus:border-pink-500 outline-none transition-all shadow-lg text-xl font-serif font-bold"
+            className="w-full px-6 py-5 rounded-2xl bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-pink-500 dark:focus:border-pink-500 outline-none transition-all shadow-sm text-xl font-bold placeholder:text-gray-300"
             placeholder="文章标题 (可选，默认为正文第一行)"
           />
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="w-full h-80 p-6 rounded-3xl bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-pink-500 dark:focus:border-pink-500 outline-none transition-all resize-none shadow-xl text-lg font-serif"
+            className="w-full h-96 p-8 rounded-3xl bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-pink-500 dark:focus:border-pink-500 outline-none transition-all resize-none shadow-sm text-lg leading-relaxed placeholder:text-gray-300"
             placeholder="在此处输入或粘贴你的文章内容"
           />
           <button
@@ -629,7 +687,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                       }
                     }
                   }}
-                  className="w-full max-w-xl text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-gray-100 font-serif font-bold text-lg md:text-xl truncate hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg px-2 py-1 transition-colors cursor-edit"
+                  className="w-full max-w-xl text-center bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-100 font-bold text-lg md:text-xl truncate hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg px-2 py-1 transition-colors cursor-edit"
                   placeholder="未命名文章"
                 />
                 {isSaving && (
@@ -820,34 +878,65 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                 <p className="mt-4 text-gray-500 font-serif">正在加载文章内容...</p>
               </div>
             ) : (
-              <div className="prose prose-pink dark:prose-invert max-w-none prose-p:my-2 prose-headings:font-serif">
+              <div className="prose prose-gray dark:prose-invert max-w-none prose-p:my-4 prose-headings:tracking-tight prose-headings:font-black">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
                     p: ({ children }) => (
-                      <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed mb-4">
+                      <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-[1.8] mb-6">
                         {makeInteractive(children)}
                       </p>
                     ),
                     li: ({ children }) => (
-                      <li className="mb-2 text-lg text-gray-700 dark:text-gray-300">
+                      <li className="mb-3 text-lg text-gray-700 dark:text-gray-300 ml-1 leading-relaxed">
                         {makeInteractive(children)}
                       </li>
                     ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc list-outside ml-6 mb-8 space-y-3">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal list-outside ml-6 mb-8 space-y-3">
+                        {children}
+                      </ol>
+                    ),
                     h1: ({ children }) => (
-                      <h1 className="text-3xl font-bold mb-6 font-serif border-b pb-2">
+                      <h1 className="text-4xl md:text-5xl font-black mb-10 border-b-4 border-gray-100 dark:border-gray-800 pb-4">
                         {makeInteractive(children)}
                       </h1>
                     ),
                     h2: ({ children }) => (
-                      <h2 className="text-2xl font-bold mt-8 mb-4 font-serif">
-                        {makeInteractive(children)}
+                      <h2 className="text-2xl md:text-3xl font-extrabold mt-16 mb-8 text-gray-900 dark:text-gray-50 group">
+                        <span className="inline-block">{makeInteractive(children)}</span>
                       </h2>
                     ),
                     h3: ({ children }) => (
-                      <h3 className="text-xl font-bold mt-6 mb-2 font-serif">
+                      <h3 className="text-xl md:text-2xl font-bold mt-12 mb-4 text-gray-900 dark:text-gray-100">
                         {makeInteractive(children)}
                       </h3>
+                    ),
+                    h4: ({ children }) => (
+                      <h4 className="text-lg md:text-xl font-bold mt-8 mb-3 text-gray-800 dark:text-gray-200">
+                        {makeInteractive(children)}
+                      </h4>
+                    ),
+                    h5: ({ children }) => (
+                      <h5 className="text-base font-bold mt-6 mb-2 text-gray-800 dark:text-gray-200">
+                        {makeInteractive(children)}
+                      </h5>
+                    ),
+                    h6: ({ children }) => (
+                      <h6 className="text-sm font-black mt-6 mb-2 text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                        {makeInteractive(children)}
+                      </h6>
+                    ),
+                    hr: () => <hr className="my-10 border-gray-200 dark:border-gray-800" />,
+                    a: ({ children, href }) => (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-600 underline decoration-pink-500/30 underline-offset-4 font-medium transition-colors">
+                        {makeInteractive(children)}
+                      </a>
                     ),
                     table: ({ children }) => (
                       <div className="overflow-x-auto my-6">
@@ -862,13 +951,20 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                         {makeInteractive(children)}
                       </td>
                     ),
-                    code: ({ children, inline }: any) => {
-                      if (inline) {
-                        return <code className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 font-mono text-sm inline-block">{children}</code>;
+                    code: (props: any) => {
+                      const { children, className, node } = props;
+                      const hasLang = /language-(\w+)/.exec(className || '');
+                      
+                      if (!hasLang) {
+                        return (
+                          <code className="bg-gray-100 dark:bg-gray-800/50 text-pink-600 dark:text-pink-400 rounded-md px-1.5 py-0.5 font-mono text-[0.85em] font-bold mx-0.5 inline">
+                            {children}
+                          </code>
+                        );
                       }
                       return (
-                        <pre className="p-4 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto my-4 font-mono text-sm leading-relaxed border border-gray-800 shadow-lg">
-                          <code>{children}</code>
+                        <pre className="p-6 bg-gray-950 text-gray-100 rounded-2xl overflow-x-auto my-8 font-mono text-sm leading-relaxed border border-gray-800 shadow-2xl">
+                          <code className={className}>{children}</code>
                         </pre>
                       );
                     },
@@ -1002,7 +1098,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                           </div>
                           <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Quick Translation</span>
                         </div>
-                        <p className="text-lg text-gray-800 dark:text-gray-100 leading-relaxed font-serif font-medium">
+                        <p className="text-lg text-gray-800 dark:text-gray-100 leading-relaxed font-medium">
                           {res.data.translation}
                         </p>
                       </div>
