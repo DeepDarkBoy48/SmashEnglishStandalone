@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, Info, RefreshCw, ChevronDown } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Copy, Check, Info, RefreshCw, ChevronDown, SendHorizonal } from 'lucide-react';
 import { translateAdvancedService } from '../services/geminiService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -56,15 +56,16 @@ export const TranslationPage: React.FC = () => {
     }
   }, [sourceLang, targetLang]);
 
-  // Debounced translation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!activePrompt && sourceText.trim()) {
-         handleTranslate(sourceText);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [sourceText, handleTranslate, activePrompt]);
+  const onTranslateClick = () => {
+    handleTranslate(sourceText);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onTranslateClick();
+    }
+  };
 
   const handleSwapLanguages = () => {
     setSourceLang(targetLang);
@@ -140,11 +141,25 @@ export const TranslationPage: React.FC = () => {
                 setSourceText(e.target.value);
                 setActivePrompt(null);
               }}
+              onKeyDown={handleKeyDown}
               placeholder="Type or paste text to translate"
-              className="flex-1 bg-transparent text-gray-900 dark:text-white/90 p-4 md:p-6 resize-none focus:outline-none text-base md:text-lg leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/20"
+              className="flex-1 bg-transparent text-gray-900 dark:text-white/90 p-4 md:p-6 pb-12 md:pb-16 resize-none focus:outline-none text-base md:text-lg leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/20"
             />
-            <div className="px-4 py-2 flex justify-end items-center text-gray-400 dark:text-white/10 text-[10px] md:text-xs font-mono uppercase tracking-widest pointer-events-none">
-              <span>{sourceText.length} chars</span>
+            <div className="absolute bottom-3 right-3 flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-gray-400 dark:text-white/10 text-[10px] md:text-xs font-mono uppercase tracking-widest hidden md:flex">
+                <span>{sourceText.length} chars</span>
+              </div>
+              <button
+                onClick={onTranslateClick}
+                disabled={!sourceText.trim() || isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-xl active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none group border border-zinc-200 dark:border-zinc-700/50"
+              >
+                <span className="text-xs md:text-sm font-semibold">Translate</span>
+                <SendHorizonal className="w-3.5 h-3.5 md:w-4 md:h-4 text-zinc-500 dark:text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+                <div className="hidden lg:flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-600 text-[10px] text-zinc-500 dark:text-zinc-400 opacity-70">
+                  <span className="translate-y-[0.5px]">↵</span>
+                </div>
+              </button>
             </div>
           </div>
 
