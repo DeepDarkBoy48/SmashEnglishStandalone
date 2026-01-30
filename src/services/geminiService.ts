@@ -57,6 +57,15 @@ export const quickLookupService = (word: string, context: string, url?: string, 
 export const translateService = (text: string): Promise<TranslateResult> => {
   return request.post('/fastapi/translate', { text }) as Promise<TranslateResult>;
 };
+
+export const translateAdvancedService = (data: { 
+  text: string; 
+  source_lang: string; 
+  target_lang: string; 
+  custom_prompt?: string 
+}): Promise<TranslateResult> => {
+  return request.post('/fastapi/translate-advanced', data) as Promise<TranslateResult>;
+};
 export const rapidLookupService = (word: string, context: string): Promise<RapidLookupResult> => {
   return request.post('/fastapi/rapid-lookup', { word, context }) as Promise<RapidLookupResult>;
 };

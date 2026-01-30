@@ -7,6 +7,7 @@ import { WritingPage } from './components/WritingPage';
 import { SavedWordsPage } from './components/SavedWordsPage';
 import { IntensiveReadingPage } from './components/IntensiveReadingPage';
 import { WordsManagementPage } from './components/WordsManagementPage';
+import { TranslationPage } from './components/TranslationPage';
 
 import { AiAssistant } from './components/AiAssistant';
 import { YoutubeStudyPage } from './components/YoutubeStudyPage';
@@ -57,13 +58,15 @@ const App: React.FC = () => {
       return { tab: 'saved-words' as const, id: null };
     } else if (path === '/words-management') {
       return { tab: 'words-management' as const, id: null };
+    } else if (path === '/translate') {
+      return { tab: 'translate' as const, id: null };
     }
     return { tab: 'analyzer' as const, id: null };
   };
 
   const initialRoute = getInitialRoute();
 
-  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management'>(initialRoute.tab);
+  const [activeTab, setActiveTab] = useState<'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management' | 'translate'>(initialRoute.tab);
 
   // Analyzer State - 使用预加载的示例数据作为初始值
   const [isAnalyzerLoading, setIsAnalyzerLoading] = useState(false);
@@ -184,6 +187,8 @@ const App: React.FC = () => {
         setActiveTab('saved-words');
       } else if (path === '/words-management') {
         setActiveTab('words-management');
+      } else if (path === '/translate') {
+        setActiveTab('translate');
       } else {
         setActiveTab('analyzer');
       }
@@ -220,6 +225,8 @@ const App: React.FC = () => {
       path = '/saved-words';
     } else if (activeTab === 'words-management') {
       path = '/words-management';
+    } else if (activeTab === 'translate') {
+      path = '/translate';
     }
 
     const queryString = params.toString();
@@ -547,6 +554,10 @@ const App: React.FC = () => {
               ) : (
                 <VideoNotebookPage onSelectNotebook={setSelectedNotebook} />
               )
+            )}
+
+            {activeTab === 'translate' && (
+              <TranslationPage />
             )}
 
             {activeTab === 'saved-words' && (

@@ -1,13 +1,16 @@
 
-import { Sparkles, Book, PenTool, Star, BookOpen } from 'lucide-react';
+import { Sparkles, Book, PenTool, Star, BookOpen, Languages, Settings } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { ApiKeyModal } from './ApiKeyModal';
+import { useState } from 'react';
 
 interface HeaderProps {
-  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management';
-  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management') => void;
+  activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management' | 'translate';
+  onNavigate: (tab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management' | 'translate') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
 
 
 
@@ -27,6 +30,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
 
         <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end overflow-hidden">
           <nav className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl overflow-x-auto no-scrollbar max-w-full">
+            <button
+              onClick={() => onNavigate('translate')}
+              className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'translate'
+                ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              <Languages className="w-3.5 h-3.5 hidden xs:block" />
+              翻译
+            </button>
             <button
               onClick={() => onNavigate('youtube')}
               className={`whitespace-nowrap px-2.5 sm:px-3 md:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${activeTab === 'youtube'
@@ -99,10 +112,19 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onNavigate }) => {
             </button>
           </nav>
           
+          <button
+            onClick={() => setIsApiModalOpen(true)}
+            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title="API 设置"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+          
           <ThemeToggle />
         </div>
 
       </div>
+      <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} />
     </header>
   );
 };

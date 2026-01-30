@@ -9,7 +9,11 @@ const instance = axios.create({
 // Request interceptor
 instance.interceptors.request.use(
   (config) => {
-    // Add auth token here if needed
+    // Add Gemini API Key if present in localStorage
+    const geminiKey = localStorage.getItem("smash_gemini_api_key");
+    if (geminiKey) {
+      config.headers["X-Gemini-API-Key"] = geminiKey;
+    }
     return config;
   },
   (error) => {
