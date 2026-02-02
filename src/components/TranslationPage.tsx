@@ -18,10 +18,26 @@ const LANGUAGES = [
 ];
 
 const PROMPTS = [
-  { label: 'Translate this and make it sound more fluent.', icon: '✨' },
-  { label: 'Translate this and make it more business formal.', icon: '💼' },
-  { label: 'Translate this as if you’re explaining it to a child.', icon: '👶' },
-  { label: 'Translate this for an academic audience.', icon: '🎓' },
+  { 
+    label: '自然流畅', 
+    icon: '✨', 
+    instruction: '你是一位母语级翻译专家。请将文本转化为地道、流畅的目标语言表达。重点在于抹除一切“翻译腔”，采用当地母语者最常用的表达习惯、地道搭配和语气，使结果看起来完全不像是翻译出来的，而是原生创作。'
+  },
+  { 
+    label: '专业正式', 
+    icon: '💼', 
+    instruction: '你是一位高级商务及学术翻译。请将文本翻译为正式、专业、且严谨的风格。使用高级词汇、规范的术语和礼貌的语气，确保语法结构工整、逻辑严密。适用于商务报告、正式邮件、学术论文或法律合同等场景。'
+  },
+  { 
+    label: '通俗易懂', 
+    icon: '👶', 
+    instruction: '请将文本翻译成极其易懂的“大白话”。如果原文包含复杂的专业术语、隐喻或长难句，请将其拆解为简单明了的短句，并使用最基础的日常词汇。你的目标是让即使是一个没有相关背景知识的人（或10岁孩子）也能一眼看懂核心意思。'
+  },
+  { 
+    label: '解析热梗', 
+    icon: '🕵️', 
+    instruction: '你是一个精通中英双语网络文化的“梗百科”专家。请敏锐地识别文本中可能存在的网络热梗、谐音梗、缩写、深层暗喻或俚语（例如“依托答辩”、“鸡你太美”等）。首先给出一个地道的翻译，然后必须提供详细的【文化背景解析】，用中英双语解释该梗的起源、演变过程以及在当前语境下的真实含义或讽刺点。'
+  },
 ];
 
 export const TranslationPage: React.FC = () => {
@@ -81,15 +97,20 @@ export const TranslationPage: React.FC = () => {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handlePromptClick = (prompt: string) => {
-    setActivePrompt(prompt);
-    handleTranslate(sourceText, prompt);
+  const handlePromptClick = (label: string) => {
+    setActivePrompt(label);
+    
+    // 查找对应模式的详细指令
+    const selectedPrompt = PROMPTS.find(p => p.label === label);
+    const instruction = selectedPrompt?.instruction || label;
+    
+    handleTranslate(sourceText, instruction);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-2 md:px-4 py-4 md:py-6 animate-fade-in flex flex-col flex-1">
+    <div className="w-full max-w-6xl mx-auto px-2 md:px-4 py-0 md:py-2 animate-fade-in flex flex-col flex-1">
       {/* Container */}
-      <div className="bg-white dark:bg-[#121212] rounded-3xl md:rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl flex flex-col flex-1 p-3 md:p-6 lg:p-8 transition-colors duration-300">
+      <div className="bg-white dark:bg-[#121212] rounded-3xl md:rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-2xl flex flex-col flex-1 p-3 md:p-5 lg:p-6 transition-colors duration-300">
         
         {/* Header - Language Selection */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-3 md:mb-6 gap-2 md:gap-4">
@@ -132,9 +153,9 @@ export const TranslationPage: React.FC = () => {
         </div>
 
         {/* Translation Area */}
-        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-3 md:gap-6 flex-1 mb-3 md:mb-6 min-h-0">
+        <div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4 lg:gap-6 flex-1 mb-3 md:mb-4 min-h-0">
           {/* Source Text Area */}
-          <div className="relative group flex flex-col bg-gray-50/30 dark:bg-white/[0.02] rounded-2xl md:rounded-3xl border border-gray-100 dark:border-white/5 focus-within:ring-2 focus-within:ring-gray-100 dark:focus-within:ring-white/5 transition-all min-h-[120px] md:min-h-[200px]">
+          <div className="relative group flex flex-col bg-gray-50/30 dark:bg-white/[0.02] rounded-2xl md:rounded-3xl border border-gray-100 dark:border-white/5 focus-within:ring-2 focus-within:ring-gray-100 dark:focus-within:ring-white/5 transition-all min-h-[160px] md:min-h-0 h-full">
             <textarea
               value={sourceText}
               onChange={(e) => {
@@ -164,7 +185,7 @@ export const TranslationPage: React.FC = () => {
           </div>
 
           {/* Target Text Area */}
-          <div className="relative group flex flex-col bg-gray-50/50 dark:bg-white/[0.04] rounded-2xl md:rounded-3xl border border-gray-100 dark:border-white/5 transition-all min-h-[120px] md:min-h-[200px]">
+          <div className="relative group flex flex-col bg-gray-50/50 dark:bg-white/[0.04] rounded-2xl md:rounded-3xl border border-gray-100 dark:border-white/5 transition-all min-h-[160px] md:min-h-0 h-full">
             <div className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar relative">
               {isLoading ? (
                 <div className="flex items-center gap-2 text-gray-400 dark:text-white/30 animate-pulse">
@@ -207,14 +228,14 @@ export const TranslationPage: React.FC = () => {
               onClick={() => handlePromptClick(prompt.label)}
               disabled={!sourceText.trim() || isLoading}
               className={cn(
-                "group p-2 md:p-4 rounded-xl border transition-all text-left flex flex-col gap-1 md:gap-2 disabled:cursor-not-allowed h-full",
+                "group px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl border transition-all text-left flex items-center gap-2 disabled:cursor-not-allowed",
                 activePrompt === prompt.label 
                   ? "bg-gray-50 dark:bg-white/[0.15] border-gray-400 dark:border-white/30 text-gray-950 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-transparent" 
                   : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-600 dark:text-white/40 hover:enabled:bg-gray-50 dark:hover:enabled:bg-white/[0.06] hover:enabled:border-gray-200 dark:hover:enabled:border-white/10 hover:enabled:text-gray-900 dark:hover:enabled:text-white shadow-sm"
               )}
             >
-              <span className="text-base md:text-xl group-hover:scale-110 transition-transform">{prompt.icon}</span>
-              <span className="text-[9px] md:text-xs font-medium leading-tight line-clamp-2">{prompt.label}</span>
+              <span className="text-sm md:text-base shrink-0 group-hover:scale-110 transition-transform">{prompt.icon}</span>
+              <span className="text-[10px] md:text-[12px] font-medium leading-none truncate">{prompt.label}</span>
             </button>
           ))}
         </div>
