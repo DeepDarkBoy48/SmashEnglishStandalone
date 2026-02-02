@@ -450,7 +450,7 @@ const App: React.FC = () => {
     if (activeTab === 'youtube' || activeTab === 'reading') {
       return 'xl:px-4 xl:py-2 px-0 py-0'; // Minimal padding for full-page modes
     }
-    return 'px-4 py-6 md:py-8';
+    return 'px-2 py-4 md:px-4 md:py-8';
   };
 
   return (
