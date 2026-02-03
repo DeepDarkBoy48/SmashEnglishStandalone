@@ -1,14 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { Copy, Check, Info, RefreshCw, ChevronDown, SendHorizonal } from 'lucide-react';
 import { translateAdvancedService } from '../services/geminiService';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 const LANGUAGES = [
+  { code: 'auto', name: '自动识别' },
   { code: 'zh', name: 'Chinese (Simplified, China)' },
   { code: 'en', name: 'English' },
   { code: 'ja', name: 'Japanese' },
@@ -17,39 +12,26 @@ const LANGUAGES = [
   { code: 'de', name: 'German' },
 ];
 
-const PROMPTS = [
-  { 
-    label: '自然流畅', 
-    icon: '✨', 
-    instruction: '你是一位母语级翻译专家。请将文本转化为地道、流畅的目标语言表达。重点在于抹除一切“翻译腔”，采用当地母语者最常用的表达习惯、地道搭配和语气，使结果看起来完全不像是翻译出来的，而是原生创作。'
-  },
-  { 
-    label: '专业正式', 
-    icon: '💼', 
-    instruction: '你是一位高级商务及学术翻译。请将文本翻译为正式、专业、且严谨的风格。使用高级词汇、规范的术语和礼貌的语气，确保语法结构工整、逻辑严密。适用于商务报告、正式邮件、学术论文或法律合同等场景。'
-  },
-  { 
-    label: '通俗易懂', 
-    icon: '👶', 
-    instruction: '请将文本翻译成极其易懂的“大白话”。如果原文包含复杂的专业术语、隐喻或长难句，请将其拆解为简单明了的短句，并使用最基础的日常词汇。你的目标是让即使是一个没有相关背景知识的人（或10岁孩子）也能一眼看懂核心意思。'
-  },
-  { 
-    label: '解析热梗', 
-    icon: '🕵️', 
-    instruction: '你是一个精通中英双语网络文化的“梗百科”专家。请敏锐地识别文本中可能存在的网络热梗、谐音梗、缩写、深层暗喻或俚语（例如“依托答辩”、“鸡你太美”等）。首先给出一个地道的翻译，然后必须提供详细的【文化背景解析】，用中英双语解释该梗的起源、演变过程以及在当前语境下的真实含义或讽刺点。'
-  },
-];
 
-export const TranslationPage: React.FC = () => {
-  const [sourceLang, setSourceLang] = useState('zh');
-  const [targetLang, setTargetLang] = useState('en');
-  const [sourceText, setSourceText] = useState('');
-  const [translatedText, setTranslatedText] = useState('');
+interface TranslationPageProps {
+  sourceText: string;
+  setSourceText: (text: string) => void;
+  translatedText: string;
+  setTranslatedText: (text: string) => void;
+}
+
+export const TranslationPage: React.FC<TranslationPageProps> = ({
+  sourceText,
+  setSourceText,
+  translatedText,
+  setTranslatedText
+}) => {
+  const [sourceLang, setSourceLang] = useState('auto');
+  const [targetLang, setTargetLang] = useState('auto');
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [activePrompt, setActivePrompt] = useState<string | null>(null);
 
-  const handleTranslate = useCallback(async (text: string, customPrompt?: string) => {
+  const handleTranslate = useCallback(async (text: string) => {
     if (!text.trim()) {
       setTranslatedText('');
       return;
@@ -60,8 +42,7 @@ export const TranslationPage: React.FC = () => {
       const result = await translateAdvancedService({
         text,
         source_lang: sourceLang,
-        target_lang: targetLang,
-        custom_prompt: customPrompt
+        target_lang: targetLang
       });
       setTranslatedText(result.translation);
     } catch (error) {
@@ -77,7 +58,7 @@ export const TranslationPage: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       onTranslateClick();
     }
@@ -97,15 +78,6 @@ export const TranslationPage: React.FC = () => {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handlePromptClick = (label: string) => {
-    setActivePrompt(label);
-    
-    // 查找对应模式的详细指令
-    const selectedPrompt = PROMPTS.find(p => p.label === label);
-    const instruction = selectedPrompt?.instruction || label;
-    
-    handleTranslate(sourceText, instruction);
-  };
 
   return (
     <div className="w-full max-w-6xl mx-auto px-2 md:px-4 py-0 md:py-2 animate-fade-in flex flex-col flex-1">
@@ -158,10 +130,7 @@ export const TranslationPage: React.FC = () => {
           <div className="relative group flex flex-col bg-gray-50/30 dark:bg-white/[0.02] rounded-2xl md:rounded-3xl border border-gray-100 dark:border-white/5 focus-within:ring-2 focus-within:ring-gray-100 dark:focus-within:ring-white/5 transition-all min-h-[160px] md:min-h-0 h-full">
             <textarea
               value={sourceText}
-              onChange={(e) => {
-                setSourceText(e.target.value);
-                setActivePrompt(null);
-              }}
+              onChange={(e) => setSourceText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type or paste text to translate"
               className="flex-1 bg-transparent text-gray-900 dark:text-white/90 p-4 md:p-6 pb-12 md:pb-16 resize-none focus:outline-none text-base md:text-lg leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/20"
@@ -220,25 +189,6 @@ export const TranslationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Style selection buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mt-auto">
-          {PROMPTS.map((prompt) => (
-            <button
-              key={prompt.label}
-              onClick={() => handlePromptClick(prompt.label)}
-              disabled={!sourceText.trim() || isLoading}
-              className={cn(
-                "group px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl border transition-all text-left flex items-center gap-2 disabled:cursor-not-allowed",
-                activePrompt === prompt.label 
-                  ? "bg-gray-50 dark:bg-white/[0.15] border-gray-400 dark:border-white/30 text-gray-950 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-transparent" 
-                  : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-600 dark:text-white/40 hover:enabled:bg-gray-50 dark:hover:enabled:bg-white/[0.06] hover:enabled:border-gray-200 dark:hover:enabled:border-white/10 hover:enabled:text-gray-900 dark:hover:enabled:text-white shadow-sm"
-              )}
-            >
-              <span className="text-sm md:text-base shrink-0 group-hover:scale-110 transition-transform">{prompt.icon}</span>
-              <span className="text-[10px] md:text-[12px] font-medium leading-none truncate">{prompt.label}</span>
-            </button>
-          ))}
-        </div>
 
       </div>
       

@@ -85,6 +85,10 @@ const App: React.FC = () => {
   // Writing State
   const [writingResult, setWritingResult] = useState<WritingResult | null>(null);
 
+  // Translation State (Lifted for AI context)
+  const [translateSource, setTranslateSource] = useState('');
+  const [translateTarget, setTranslateTarget] = useState('');
+
   // AI Assistant State (Lifted Multi-thread)
   const [aiIsOpen, setAiIsOpen] = useState(false);
   const [aiIsPinned, setAiIsPinned] = useState(false);
@@ -125,6 +129,9 @@ const App: React.FC = () => {
   } else if (activeTab === 'writing') {
     assistantContextContent = writingResult?.segments.map(s => s.text).join('') || null;
     contextType = 'writing';
+  } else if (activeTab === 'translate') {
+    assistantContextContent = translateSource ? `原文: ${translateSource}\n译文: ${translateTarget}` : null;
+    contextType = 'sentence';
   } else if (activeTab === 'youtube') {
     // Youtube tab context is handled via the trigger functions, 
     // but default to sentence for general chat
@@ -557,7 +564,12 @@ const App: React.FC = () => {
             )}
 
             {activeTab === 'translate' && (
-              <TranslationPage />
+              <TranslationPage 
+                sourceText={translateSource}
+                setSourceText={setTranslateSource}
+                translatedText={translateTarget}
+                setTranslatedText={setTranslateTarget}
+              />
             )}
 
             {activeTab === 'saved-words' && (

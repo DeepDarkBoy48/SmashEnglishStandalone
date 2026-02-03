@@ -62,7 +62,6 @@ export const translateAdvancedService = (data: {
   text: string; 
   source_lang: string; 
   target_lang: string; 
-  custom_prompt?: string 
 }): Promise<TranslateResult> => {
   return request.post('/fastapi/translate-advanced', data) as Promise<TranslateResult>;
 };

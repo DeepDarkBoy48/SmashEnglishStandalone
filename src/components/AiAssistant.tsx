@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Send, Bot, Sparkles, Loader2, Pin, PinOff, History, MessageSquare, Play } from 'lucide-react';
+import { X, Send, Bot, Sparkles, Pin, PinOff, History, MessageSquare, Play, Plus } from 'lucide-react';
 import type { Message, Thread } from '../types';
 import { getChatResponseService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
@@ -25,9 +25,9 @@ interface AiAssistantProps {
   activeTab?: string;
 }
 
-const CHIP_BASE = "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all shadow-sm flex items-center gap-1.5";
-const CHIP_DEFAULT = `${CHIP_BASE} bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600`;
-const CHIP_PRIMARY = `${CHIP_BASE} bg-red-600 hover:bg-red-700 text-white border-transparent shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95`;
+const CHIP_BASE = "flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-300 flex items-center gap-2";
+const CHIP_DEFAULT = `${CHIP_BASE} bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-pink-50 dark:hover:bg-pink-900/10 hover:text-pink-600 dark:hover:text-pink-400 border border-transparent hover:border-pink-100 dark:hover:border-pink-900/30`;
+const CHIP_PRIMARY = `${CHIP_BASE} bg-pink-600 hover:bg-pink-700 text-white shadow-lg shadow-pink-200 dark:shadow-none transform hover:-translate-y-0.5 active:translate-y-0`;
 
 export const AiAssistant: React.FC<AiAssistantProps> = ({ 
   currentContext, 
@@ -89,8 +89,8 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
       : 'fixed z-50 bottom-6 right-6 flex flex-col items-end font-sans';
 
   const cardClasses = isPinned
-    ? 'w-full h-full flex flex-col overflow-hidden bg-white dark:bg-[#0d1117]'
-    : 'w-full h-full md:w-[500px] md:h-[80vh] md:max-h-[800px] md:mb-4 bg-white dark:bg-[#0d1117] md:rounded-2xl shadow-2xl shadow-gray-900/20 dark:shadow-gray-950/50 border border-pink-300 dark:border-pink-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 transition-colors';
+    ? 'w-full h-full flex flex-col overflow-hidden bg-white dark:bg-[#0d1117] transition-all duration-500 ease-out'
+    : `w-full h-full md:w-[480px] md:h-[min(850px,85vh)] md:mb-4 bg-white dark:bg-[#0d1117] md:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-none border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden transition-all duration-500 ease-out transform ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'}`;
 
   const renderSuggestions = () => {
     const hasVideoControl = messages.some(m => m.type === 'video_control');
@@ -127,38 +127,40 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   };
 
   const renderPinnedHeader = () => (
-    <div className="p-4 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between bg-white dark:bg-[#0d1117] shrink-0">
-      <div className="flex items-center gap-2 overflow-hidden">
-        <Bot className="w-5 h-5 text-pink-500 shrink-0" />
+    <div className="p-5 border-b border-gray-50 dark:border-gray-800/60 flex items-center justify-between bg-white dark:bg-[#0d1117] shrink-0">
+      <div className="flex items-center gap-3 overflow-hidden">
+        <div className="w-10 h-10 rounded-2xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center shrink-0">
+          <Bot className="w-5 h-5 text-pink-600" />
+        </div>
         <div className="flex flex-col overflow-hidden">
-          <h2 className="font-semibold text-gray-800 dark:text-white truncate">
-            {activeThreadId ? "对话中" : "AI 助手"}
+          <h2 className="font-bold text-gray-900 dark:text-white tracking-tight">
+            {activeThreadId ? "会话详情" : "AI 助手"}
           </h2>
           {activeThreadId && (
-             <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-               {contextType === 'sentence' ? '语法' : contextType === 'word' ? '词汇' : '写作'}
+             <span className="text-[10px] font-medium text-pink-600/60 dark:text-pink-400/60 uppercase tracking-widest leading-none mt-1">
+               {contextType === 'sentence' ? 'Grammar' : contextType === 'word' ? 'Vocabulary' : 'Writing'}
              </span>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <button 
           onClick={() => setShowHistory(!showHistory)} 
-          className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-pink-50 text-pink-500 dark:bg-pink-900/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'}`}
+          className={`p-2 rounded-xl transition-all duration-200 ${showHistory ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 dark:shadow-none' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500'}`}
           title="历史记录"
         >
           <History className="w-4 h-4" />
         </button>
         <button 
           onClick={() => onPinChange(!isPinned)} 
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+          className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 text-gray-400 dark:text-gray-500"
           title="取消固定"
         >
           <PinOff className="w-4 h-4" />
         </button>
         <button 
           onClick={() => onPinChange(false)} 
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
+          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 text-gray-400 hover:text-red-500"
         >
           <X className="w-4 h-4" />
         </button>
@@ -167,31 +169,33 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   );
 
   const renderFloatingHeader = () => (
-    <div className="bg-white dark:bg-[#0d1117] px-3 py-2 flex justify-between items-center border-b border-pink-200 dark:border-pink-800/50 z-10 shrink-0 safe-top">
-      <div className="flex items-center gap-2">
-        <Bot className="w-4 h-4 text-pink-500" />
-        <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">AI 助手</span>
+    <div className="px-6 py-5 flex justify-between items-center bg-white dark:bg-[#0d1117] z-10 shrink-0">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-pink-600" />
+        </div>
+        <span className="font-bold text-gray-900 dark:text-gray-100 tracking-tight">AI 助手</span>
       </div>
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         <button 
           onClick={() => setShowHistory(!showHistory)} 
-          className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-pink-50 text-pink-500 dark:bg-pink-900/20' : 'hover:bg-pink-50 dark:hover:bg-pink-900/20 text-gray-500 dark:text-gray-400'}`}
+          className={`p-2 rounded-xl transition-all duration-200 ${showHistory ? 'bg-pink-600 text-white shadow-lg shadow-pink-200' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500'}`}
           title="历史记录"
         >
-          <History className="w-3.5 h-3.5" />
+          <History className="w-4 h-4" />
         </button>
         <button 
           onClick={() => onPinChange(!isPinned)} 
-          className="hover:bg-pink-50 dark:hover:bg-pink-900/20 p-1.5 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-pink-500"
+          className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 text-gray-400 dark:text-gray-500"
           title="固定侧边栏"
         >
-          <Pin className="w-3.5 h-3.5" />
+          <Pin className="w-4 h-4" />
         </button>
         <button 
           onClick={() => onOpenChange(false)} 
-          className="hover:bg-pink-50 dark:hover:bg-pink-900/20 p-1.5 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-pink-500"
+          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 text-gray-400 hover:text-red-500"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       </div>
     </div>
@@ -200,12 +204,17 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   return (
     <div className={containerClasses}>
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; }
-        .markdown-body p { margin-bottom: 0.5em; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #f1f5f9; border-radius: 20px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #1e293b; }
+        .markdown-body p { margin-bottom: 0.75em; }
         .markdown-body p:last-child { margin-bottom: 0; }
+        .message-appear { animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes messageIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
       `}</style>
 
       {(isOpen || isPinned) && (
@@ -215,30 +224,30 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
 
           <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
             {showHistory && (
-              <div className="absolute inset-0 bg-white dark:bg-[#0d1117] z-30 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="p-3 border-b border-gray-100 dark:border-gray-800/60 flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">历史会话</span>
+              <div className="absolute inset-0 bg-white/95 dark:bg-[#0d1117]/95 backdrop-blur-xl z-30 flex flex-col animate-in fade-in slide-in-from-top-4 duration-500 cubic-bezier(0.16, 1, 0.3, 1)">
+                <div className="px-6 py-5 flex items-center justify-between border-b border-gray-50 dark:border-gray-800/60">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">对话历史</span>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => {
                         onNewChat();
                         setShowHistory(false);
                       }} 
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-pink-500"
+                      className="p-2 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-xl text-pink-600 transition-all duration-200"
                       title="开启新对话"
                     >
-                      <History className="w-3.5 h-3.5 rotate-180" />
+                      <Plus className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setShowHistory(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                      <X className="w-3.5 h-3.5 text-gray-400" />
+                    <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all">
+                      <X className="w-5 h-5 text-gray-400" />
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                   {threads.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
-                       <MessageSquare className="w-12 h-12 mb-2 opacity-10" />
-                       <p className="text-sm">暂无历史记录</p>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center animate-in fade-in duration-700">
+                       <MessageSquare className="w-16 h-16 mb-4 opacity-5" />
+                       <p className="text-sm font-medium tracking-wide">在这里探索你的学习足迹</p>
                     </div>
                   ) : (
                     threads.map((thread: Thread) => (
@@ -248,22 +257,22 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
                           onSelectThread(thread.id);
                           setShowHistory(false);
                         }}
-                        className={`w-full text-left p-3 rounded-xl transition-all border ${
+                        className={`w-full text-left p-4 rounded-2xl transition-all duration-300 border ${
                           activeThreadId === thread.id 
                             ? 'bg-pink-50 dark:bg-pink-900/10 border-pink-100 dark:border-pink-900/30' 
-                            : 'bg-white dark:bg-transparent border-transparent hover:border-gray-100 dark:hover:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50'
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                            thread.contextType === 'sentence' ? 'bg-blue-400' : 'bg-green-400'
+                        <div className="flex items-center gap-4">
+                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ${
+                            thread.contextType === 'sentence' ? 'bg-indigo-400' : 'bg-emerald-400'
                           }`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate leading-snug">
                               {thread.title}
                             </p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                              {new Date(thread.timestamp).toLocaleString()}
+                            <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wider">
+                              {new Date(thread.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         </div>
@@ -274,24 +283,29 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
               </div>
             )}
 
-            <div className={`flex-1 overflow-y-auto space-y-4 custom-scrollbar transition-colors ${isPinned ? 'px-4 py-3 bg-white dark:bg-[#0d1117]' : 'px-3 py-4 bg-gray-50 dark:bg-gray-800/50 space-y-6'}`}>
+            <div className={`flex-1 overflow-y-auto space-y-8 custom-scrollbar transition-colors ${isPinned ? 'px-6 py-6 bg-white dark:bg-[#0d1117]' : 'px-6 py-8 bg-white dark:bg-[#0d1117]'}`}>
               {messages.length === 0 && !isThinking && (
-                <div className="flex flex-col items-center justify-center h-48 text-gray-400 space-y-3">
-                  <Bot className="w-12 h-12 opacity-10" />
-                  <p className="text-sm">点击左侧句子或单词开启分析会话</p>
+                <div className="flex flex-col items-center justify-center h-64 text-gray-300 dark:text-gray-600 space-y-6 animate-in fade-in duration-1000">
+                  <div className="w-20 h-20 rounded-[2.5rem] bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                    <Bot className="w-10 h-10 opacity-20" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold tracking-widest uppercase opacity-40">随时准备为你效劳</p>
+                    <p className="text-xs mt-2 opacity-30">输入问题或点击左侧内容开始分析</p>
+                  </div>
                 </div>
               )}
               {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} message-appear`}>
                   {msg.type === 'analysis_result' && msg.data ? (
                     <div className="w-full">
-                       <div className={`border border-gray-200 dark:border-gray-700 overflow-hidden ${isPinned ? 'bg-gray-50 dark:bg-gray-900/50 rounded-xl p-0' : 'bg-white dark:bg-[#0d1117] rounded-3xl p-1 shadow-sm'}`}>
+                       <div className={`overflow-hidden transition-all duration-300 ${isPinned ? 'bg-gray-50/50 dark:bg-gray-900/50 rounded-3xl' : 'bg-gray-50/50 dark:bg-gray-900/50 rounded-3xl'}`}>
                           <ResultDisplay result={msg.data} compact={true} />
                        </div>
                     </div>
                   ) : msg.type === 'dictionary_result' && msg.data ? (
                     <div className="w-full">
-                       <div className={`border border-gray-200 dark:border-gray-700 overflow-hidden ${isPinned ? 'bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3' : 'bg-white dark:bg-[#0d1117] rounded-3xl p-4 shadow-sm'}`}>
+                       <div className={`overflow-hidden transition-all duration-300 ${isPinned ? 'bg-gray-50/50 dark:bg-gray-900/50 rounded-3xl p-4' : 'bg-gray-50/50 dark:bg-gray-900/50 rounded-3xl p-6'}`}>
                           <CompactDictionaryResult result={msg.data} />
                        </div>
                     </div>
@@ -300,10 +314,10 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
                        <QuickLookupDisplay result={msg.data} isPinned={isPinned} />
                     </div>
                   ) : msg.type === 'video_control' ? null : (
-                    <div className={`rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                    <div className={`text-sm leading-relaxed transition-all duration-300 ${
                       msg.role === 'user' 
-                        ? (isPinned ? 'bg-pink-500 text-white max-w-[85%]' : 'bg-pink-600 text-white rounded-br-sm max-w-[90%] md:max-w-[98%] shadow-sm')
-                        : (isPinned ? 'bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 w-full markdown-body' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-bl-sm max-w-[90%] md:max-w-[98%] shadow-sm markdown-body')
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-3 rounded-2xl rounded-tr-none max-w-[85%] font-medium'
+                        : 'bg-white dark:bg-transparent text-gray-800 dark:text-gray-200 w-full markdown-body py-2'
                     }`}>
                       {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
                     </div>
@@ -311,11 +325,13 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
                 </div>
               ))}
               {isThinking && (
-                <div className="flex justify-start">
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2 transition-colors">
-                    <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
-                    <span className="text-sm text-gray-400 dark:text-gray-500">正在思考...</span>
+                <div className="flex justify-start items-center gap-4 animate-pulse">
+                  <div className="flex gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-bounce" />
                   </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-600/50 dark:text-pink-400/50">正在深度思考</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -328,17 +344,21 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
             </div>
           )}
 
-          <form onSubmit={onSubmit} className={`shrink-0 safe-bottom transition-colors ${isPinned ? 'p-3 bg-white dark:bg-[#0d1117] border-t border-gray-100 dark:border-gray-800/60' : 'p-3 bg-white dark:bg-[#0d1117] border-t border-gray-100 dark:border-gray-700'}`}>
-            <div className="relative flex items-center">
+          <form onSubmit={onSubmit} className="p-6 pt-2 bg-white dark:bg-[#0d1117] shrink-0">
+            <div className="relative flex items-center group">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="输入你的问题..."
-                className={`w-full text-gray-700 dark:text-gray-200 focus:outline-none transition-all text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${isPinned ? 'pl-4 pr-10 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 focus:border-pink-300 dark:focus:border-pink-800' : 'pl-5 pr-12 py-3 rounded-full bg-gray-100 dark:bg-gray-800 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:bg-white dark:focus:bg-gray-700'}`}
+                placeholder="在此输入你的疑惑..."
+                className="w-full pl-6 pr-14 py-4 rounded-[1.25rem] bg-gray-50 dark:bg-gray-900/80 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-100 dark:focus:ring-pink-900/30 transition-all duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-600"
               />
-              <button type="submit" disabled={!inputValue.trim() || isThinking} className={`absolute p-2 text-white disabled:opacity-50 transition-all ${isPinned ? 'right-1 p-1.5 bg-pink-500 hover:bg-pink-600 rounded-lg' : 'right-1.5 p-2 bg-pink-600 hover:bg-pink-700 rounded-full'}`}>
-                <Send className={isPinned ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+              <button 
+                type="submit" 
+                disabled={!inputValue.trim() || isThinking} 
+                className="absolute right-2 p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl disabled:opacity-20 disabled:grayscale transition-all duration-300 hover:scale-105 active:scale-95"
+              >
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </form>
@@ -349,10 +369,10 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
       {!isPinned && activeTab !== 'youtube' && (
         <button
           onClick={() => onOpenChange(!isOpen)}
-          className={`group p-3 rounded-full shadow-lg transition-all duration-300 flex items-center gap-1.5 relative overflow-hidden ${isOpen ? 'hidden md:flex bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rotate-90 scale-90' : 'flex bg-gradient-to-tr from-pink-600 to-rose-500 text-white hover:scale-105 hover:-translate-y-0.5'}`}
+          className={`group w-14 h-14 rounded-2xl shadow-2xl transition-all duration-500 flex items-center justify-center relative overflow-hidden transform ${isOpen ? 'rotate-180 scale-90 translate-y-4 opacity-0 pointer-events-none' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-110 active:scale-95'}`}
         >
-          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-          {isOpen ? <X className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+          {isOpen ? <X className="w-6 h-6 relative z-10" /> : <Sparkles className="w-6 h-6 relative z-10" />}
+          <div className="absolute inset-0 bg-gradient-to-tr from-pink-600/20 to-violet-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </button>
       )}
     </div>
