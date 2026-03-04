@@ -89,6 +89,10 @@ export const deleteSavedWordService = (wordId: number): Promise<any> => {
   return request.delete(`/fastapi/saved-words/${wordId}`);
 };
 
+export const deleteSavedWordEncounterService = (wordId: number, encounterKey: string): Promise<any> => {
+  return request.delete(`/fastapi/saved-words/${wordId}/encounters/${encodeURIComponent(encounterKey)}`);
+};
+
 export const createSavedWordService = (data: { word: string; context: string; url?: string; data?: any; note_id?: number }): Promise<SavedWord> => {
   return request.post('/fastapi/saved-words', data) as Promise<SavedWord>;
 };
@@ -181,4 +185,3 @@ export const importReviewArticleService = (data: { title: string; content: strin
 export const submitReviewFeedbackService = (data: FSRSFeedbackRequest): Promise<any> => {
   return request.post('/fastapi/review/feedback', data);
 };
-

@@ -146,6 +146,7 @@ export interface SavedWord {
   context: string;
   url?: string;
   data: any; // QuickLookupResult data
+  encounters: SavedWordEncounter[];
   created_at?: string;
   note_id?: number;
   reading_id?: number;
@@ -158,6 +159,17 @@ export interface SavedWord {
   last_review?: string;
   reps: number;
   state: number;
+}
+
+export interface SavedWordEncounter {
+  key: string;
+  context: string;
+  url?: string;
+  note_id?: number;
+  reading_id?: number;
+  video_id?: number;
+  created_at?: string;
+  lookup: QuickLookupResult;
 }
 
 export interface SavedWordsResponse {

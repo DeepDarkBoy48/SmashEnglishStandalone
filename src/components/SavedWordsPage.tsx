@@ -3,12 +3,12 @@ import {
   getDailyNotesService, 
   getNoteDetailService, 
   summarizeDailyNoteService,
-  deleteSavedWordService,
-  getSavedWordsService
+  getSavedWordsService,
+  deleteSavedWordEncounterService
 } from '../services/geminiService';
-import type { DailyNote, SavedWord, QuickLookupResult, OtherMeaning } from '../types';
+import type { DailyNote, SavedWord, QuickLookupResult, OtherMeaning, SavedWordEncounter } from '../types';
 import { 
-  BookMarked, Clock, ChevronRight, MessageSquare, 
+  BookMarked, Clock, ChevronRight, ChevronLeft, MessageSquare, 
   Trash2, BookOpen, Loader2, Sparkles, Calendar, ArrowLeft, BrainCircuit, ExternalLink, Download, FileJson, FileCode, Filter, Search
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -28,6 +28,7 @@ export const SavedWordsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateQuery, setDateQuery] = useState('');
   const [isMasterLoading, setIsMasterLoading] = useState(false);
+  const [currentEncounterIndex, setCurrentEncounterIndex] = useState<Record<number, number>>({});
 
   useEffect(() => {
     fetchNotes();
@@ -100,19 +101,78 @@ export const SavedWordsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteWord = async (wordId: number) => {
-    if (!confirm('确定要删除这个单词吗？')) return;
+  const getEncounters = (item: SavedWord): SavedWordEncounter[] => {
+    if (item.encounters && item.encounters.length > 0) {
+      return [...item.encounters].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    }
+
+    const fallbackLookup: QuickLookupResult = {
+      word: item.word,
+      contextMeaning: item.data?.contextMeaning || item.data?.m || '',
+      partOfSpeech: item.data?.partOfSpeech || item.data?.p || '',
+      grammarRole: item.data?.grammarRole || '',
+      explanation: item.data?.explanation || '',
+      otherMeanings: item.data?.otherMeanings || []
+    };
+
+    return [{
+      key: `legacy-${item.id}`,
+      context: item.context,
+      url: item.url || item.data?.url,
+      note_id: item.note_id,
+      reading_id: item.reading_id || item.data?.reading_id,
+      video_id: item.video_id || item.data?.video_id,
+      created_at: item.created_at,
+      lookup: fallbackLookup
+    }];
+  };
+
+  const getEncounterIndex = (item: SavedWord): number => {
+    const encounters = getEncounters(item);
+    const idx = currentEncounterIndex[item.id] ?? 0;
+    return Math.min(Math.max(0, idx), Math.max(encounters.length - 1, 0));
+  };
+
+  const switchEncounter = (item: SavedWord, nextIndex: number) => {
+    const total = getEncounters(item).length;
+    const bounded = Math.min(Math.max(0, nextIndex), Math.max(total - 1, 0));
+    setCurrentEncounterIndex(prev => ({ ...prev, [item.id]: bounded }));
+  };
+
+  const replaceWordInCollections = (updatedWord: SavedWord) => {
+    setAllWords(prev => prev ? prev.map(w => w.id === updatedWord.id ? updatedWord : w) : prev);
+    setSelectedNote(prev => prev ? {
+      ...prev,
+      words: prev.words ? prev.words.map(w => w.id === updatedWord.id ? updatedWord : w) : prev.words
+    } : prev);
+  };
+
+  const removeWordFromCollections = (wordId: number) => {
+    setAllWords(prev => prev ? prev.filter(w => w.id !== wordId) : prev);
+    setSelectedNote(prev => prev ? {
+      ...prev,
+      words: prev.words ? prev.words.filter(w => w.id !== wordId) : prev.words
+    } : prev);
+    setCurrentEncounterIndex(prev => {
+      const next = { ...prev };
+      delete next[wordId];
+      return next;
+    });
+  };
+
+  const handleDeleteEncounter = async (item: SavedWord, encounter: SavedWordEncounter) => {
+    if (!confirm('确定要删除当前来源卡片吗？')) return;
     try {
-      await deleteSavedWordService(wordId);
-      if (selectedNote) {
-        setSelectedNote({
-          ...selectedNote,
-          words: selectedNote.words ? selectedNote.words.filter(w => w.id !== wordId) : null,
-          note: { ...selectedNote.note, word_count: Math.max(0, selectedNote.note.word_count - 1) }
-        });
+      const result = await deleteSavedWordEncounterService(item.id, encounter.key);
+      if (result?.deleted) {
+        removeWordFromCollections(item.id);
+      } else if (result?.word) {
+        replaceWordInCollections(result.word as SavedWord);
       }
-      if (allWords) {
-        setAllWords(allWords.filter(w => w.id !== wordId));
+
+      if (selectedNote) {
+        const refreshed = await getNoteDetailService(selectedNote.note.id);
+        setSelectedNote(refreshed);
       }
       fetchNotes();
     } catch (err) {
@@ -129,16 +189,21 @@ export const SavedWordsPage: React.FC = () => {
     if (format === 'md') {
       content = `# 今日词汇 (${words.length}) - ${note.day}\n\n`;
       words.forEach(item => {
-        const meaning = item.data?.contextMeaning || item.data?.m || '';
-        const pos = item.data?.partOfSpeech || item.data?.p || '';
-        const explanation = item.data?.explanation || '';
-        const url = item.url || item.data?.url || '';
-        const highlightedContext = item.context.replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
-        content += `### ${item.word} [${pos.toUpperCase()}]\n\n`;
-        content += `**释义**: ${meaning}\n\n`;
-        content += `> "${highlightedContext}"\n\n`;
-        content += `**AI 解析**:\n${explanation}\n\n`;
-        if (url) content += `**来源**: [${url}](${url})\n\n`;
+        const encounters = getEncounters(item);
+        content += `### ${item.word}\n\n`;
+        encounters.forEach((enc, idx) => {
+          const lookup = enc.lookup || ({} as QuickLookupResult);
+          const meaning = lookup.contextMeaning || '';
+          const pos = lookup.partOfSpeech || '';
+          const explanation = lookup.explanation || '';
+          const sourceUrl = enc.url || item.url || '';
+          const highlightedContext = (enc.context || '').replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
+          content += `#### 来源 ${idx + 1}/${encounters.length}${pos ? ` [${pos.toUpperCase()}]` : ''}\n\n`;
+          content += `**释义**: ${meaning}\n\n`;
+          content += `> "${highlightedContext}"\n\n`;
+          content += `**AI 解析**:\n${explanation}\n\n`;
+          if (sourceUrl) content += `**来源**: [${sourceUrl}](${sourceUrl})\n\n`;
+        });
         content += `---\n`;
       });
       filename += '.md';
@@ -171,17 +236,22 @@ export const SavedWordsPage: React.FC = () => {
 
       if (format === 'md') {
         content = data.words.map(item => {
-          const meaning = item.data?.contextMeaning || item.data?.m || '';
-          const pos = item.data?.partOfSpeech || item.data?.p || '';
-          const explanation = item.data?.explanation || '';
-          const url = item.url || item.data?.url || '';
-          const highlightedContext = item.context.replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
-          return `# ${item.word} [${pos.toUpperCase()}]\n\n` +
-                 `**${meaning}**\n\n` +
-                 `> "${highlightedContext}"\n\n` +
-                 `**AI 解析**:\n${explanation}\n\n` +
-                 (url ? `**来源**: [${url}](${url})\n\n` : '') +
-                 `---\n`;
+          const encounters = getEncounters(item);
+          const encounterMd = encounters.map((enc, idx) => {
+            const lookup = enc.lookup || ({} as QuickLookupResult);
+            const meaning = lookup.contextMeaning || '';
+            const pos = lookup.partOfSpeech || '';
+            const explanation = lookup.explanation || '';
+            const sourceUrl = enc.url || item.url || '';
+            const highlightedContext = (enc.context || '').replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
+            return `## 来源 ${idx + 1}/${encounters.length}${pos ? ` [${pos.toUpperCase()}]` : ''}\n\n` +
+              `**${meaning}**\n\n` +
+              `> "${highlightedContext}"\n\n` +
+              `**AI 解析**:\n${explanation}\n\n` +
+              (sourceUrl ? `**来源**: [${sourceUrl}](${sourceUrl})\n\n` : '');
+          }).join('');
+
+          return `# ${item.word}\n\n${encounterMd}---\n`;
         }).join('\n');
         filename += '.md';
       } else {
@@ -207,12 +277,50 @@ export const SavedWordsPage: React.FC = () => {
   };
 
   const renderWordCard = (item: SavedWord) => {
-    const data = item.data as QuickLookupResult;
+    const encounters = getEncounters(item);
+    if (encounters.length === 0) return null;
+    const index = getEncounterIndex(item);
+    const activeEncounter = encounters[index] || encounters[0];
+    const data = (activeEncounter?.lookup || item.data || {}) as QuickLookupResult;
+    const activeContext = activeEncounter?.context || item.context || '';
+    const readingId = activeEncounter?.reading_id || item.reading_id || data?.reading_id;
+    const videoId = activeEncounter?.video_id || item.video_id || data?.video_id;
+    const sourceUrl = activeEncounter?.url || item.url || data?.url;
+
     return (
       <div key={item.id} className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 sm:p-8 hover:shadow-2xl hover:border-pink-200 dark:hover:border-pink-900/30 transition-all duration-500 flex flex-col h-full">
-        <button onClick={() => handleDeleteWord(item.id)} className="absolute top-4 right-4 sm:top-6 sm:right-6 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Trash2 className="w-5 h-5" />
-        </button>
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2">
+          {encounters.length > 1 && (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-white/90 dark:bg-gray-800/90 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <button
+                onClick={() => switchEncounter(item, index - 1)}
+                disabled={index <= 0}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="上一来源"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[10px] font-bold text-gray-500 min-w-[42px] text-center">
+                {index + 1}/{encounters.length}
+              </span>
+              <button
+                onClick={() => switchEncounter(item, index + 1)}
+                disabled={index >= encounters.length - 1}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="下一来源"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => handleDeleteEncounter(item, activeEncounter)}
+            className="text-gray-300 hover:text-red-500 transition-colors"
+            title="删除当前来源"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 mb-4">
           <h3 className="text-xl sm:text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase">{item.word}</h3>
@@ -239,7 +347,7 @@ export const SavedWordsPage: React.FC = () => {
         <div className="relative bg-gray-50 dark:bg-white/5 rounded-2xl p-4 sm:p-5 mb-6 border border-gray-100 dark:border-white/5">
           <MessageSquare className="absolute -top-3 -left-3 w-8 h-8 text-pink-200/50 dark:text-pink-900/20 fill-current" />
           <p className="text-base sm:text-lg text-gray-800 dark:text-gray-200 leading-relaxed font-medium relative z-10">
-            "{item.context.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => 
+            "{activeContext.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => 
               part.toLowerCase() === item.word.toLowerCase() 
                 ? <span key={i} className="text-pink-600 dark:text-pink-400 font-bold decoration-pink-300 dark:decoration-pink-700 underline underline-offset-4 decoration-2">{part}</span>
                 : part
@@ -287,77 +395,61 @@ export const SavedWordsPage: React.FC = () => {
           )}
         </div>
 
-        {(() => {
-          const readingId = item.reading_id || data?.reading_id;
-          const videoId = item.video_id || data?.video_id;
-          const sourceUrl = item.url || data?.url;
-
-          if (readingId) {
-            return (
-              <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  精读记事本
-                </div>
-                <a 
-                  href={`/intensive-reading?id=${readingId}&word=${encodeURIComponent(item.word)}`} 
-                  className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
-                >
-                  <span>回到文章精读</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            );
-          }
-
-          if (videoId) {
-            return (
-              <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  <BrainCircuit className="w-3.5 h-3.5" />
-                  视频学习
-                </div>
-                <a 
-                  href={`/video-study?id=${videoId}`} 
-                  className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
-                >
-                  <span>回到视频学习</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            );
-          }
-
-          if (sourceUrl) {
-            return (
-              <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  外部来源
-                </div>
-                <a 
-                  href={sourceUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
-                >
-                  <span className="max-w-[150px] truncate">
-                    {sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            );
-          }
-          return null;
-        })()}
+        {readingId ? (
+          <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <BookOpen className="w-3.5 h-3.5" />
+              精读记事本
+            </div>
+            <a 
+              href={`/intensive-reading?id=${readingId}&word=${encodeURIComponent(item.word)}`} 
+              className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <span>回到文章精读</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        ) : videoId ? (
+          <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <BrainCircuit className="w-3.5 h-3.5" />
+              视频学习
+            </div>
+            <a 
+              href={`/video-study?id=${videoId}`} 
+              className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <span>回到视频学习</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        ) : sourceUrl ? (
+          <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <ExternalLink className="w-3.5 h-3.5" />
+              外部来源
+            </div>
+            <a 
+              href={sourceUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-xs font-bold text-pink-500 hover:text-white dark:text-pink-400 py-1.5 px-3 hover:bg-pink-500 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <span className="max-w-[150px] truncate">
+                {sourceUrl.replace(/^https?:\/\//, '').split('/')[0]}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        ) : null}
       </div>
     );
   };
 
   const filteredMasterWords = allWords?.filter(w => {
+    const encounterMeanings = getEncounters(w).map(enc => enc.lookup?.contextMeaning || '').join(' ');
     const matchesSearch = w.word.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (w.data?.contextMeaning || '').toLowerCase().includes(searchQuery.toLowerCase());
+                          encounterMeanings.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !dateQuery || (w.created_at && w.created_at.includes(dateQuery));
     return matchesSearch && matchesDate;
   }) || [];

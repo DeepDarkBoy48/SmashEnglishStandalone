@@ -168,6 +168,9 @@ interface IntensiveReadingPageProps {
   };
 
 export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ initialNotebookData, onBack, initialHighlightedWord }) => {
+  const normalizeWord = (raw: string) =>
+    raw.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase().trim();
+
   const [inputMode, setInputMode] = useState(!initialNotebookData || !initialNotebookData.id || (initialNotebookData as any)._forceEdit);
   const [text, setText] = useState(initialNotebookData?.content || '');
   const [results, setResults] = useState<ResultItem[]>([]);
@@ -193,7 +196,11 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   const [showMobileResults, setShowMobileResults] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [activeSentenceKey, setActiveSentenceKey] = useState<string | null>(null);
+  const [focusedResultId, setFocusedResultId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const desktopResultRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const mobileResultRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const focusTimerRef = useRef<number | null>(null);
 
   // Mode change or outside click should clear active sentence
   useEffect(() => {
@@ -229,6 +236,24 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   });
   
   const resultsEndRef = useRef<HTMLDivElement>(null);
+
+  const focusExistingResult = (resultId: string) => {
+    const isMobileLayout = window.innerWidth < 1024;
+    if (isMobileLayout) {
+      setShowMobileResults(true);
+    }
+
+    const targetEl = isMobileLayout
+      ? mobileResultRefs.current[resultId]
+      : desktopResultRefs.current[resultId];
+
+    targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFocusedResultId(resultId);
+    if (focusTimerRef.current) {
+      window.clearTimeout(focusTimerRef.current);
+    }
+    focusTimerRef.current = window.setTimeout(() => setFocusedResultId(null), 1400);
+  };
 
   // Auto-scroll to highlighted word
   useEffect(() => {
@@ -311,6 +336,14 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
     }, 100);
     return () => clearTimeout(timer);
   }, [results]);
+
+  useEffect(() => {
+    return () => {
+      if (focusTimerRef.current) {
+        window.clearTimeout(focusTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleStartReading = async () => {
     let finalContent = text;
@@ -397,6 +430,34 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
    const handleWordClick = async (word: string, context: string) => {
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
     if (!cleanWord) return;
+    const normalized = normalizeWord(cleanWord);
+
+    // Reuse existing result card in panel if already analyzed before.
+    const existingResult = results.find(
+      (res) => res.type === 'dictionary' && normalizeWord(res.data?.word || '') === normalized
+    );
+    if (existingResult) {
+      focusExistingResult(existingResult.id);
+      if (highlightedWord) setHighlightedWord('');
+      return;
+    }
+
+    // If the word already exists in local saved words cache, reuse it and skip AI request.
+    const sameWordSaved = savedWordsList.filter((item) => normalizeWord(item.word || "") === normalized);
+    const prioritizedSaved = sameWordSaved.find((item) => item.reading_id === notebookId) || sameWordSaved[0];
+    const cachedData = prioritizedSaved?.data;
+    if (prioritizedSaved && cachedData && typeof cachedData === 'object') {
+      addResult('dictionary', {
+        ...cachedData,
+        word: cachedData.word || prioritizedSaved.word || cleanWord,
+        originalSentence: context,
+        url: cachedData.url || prioritizedSaved.url,
+        reading_id: cachedData.reading_id ?? prioritizedSaved.reading_id,
+        video_id: cachedData.video_id ?? prioritizedSaved.video_id
+      });
+      if (highlightedWord) setHighlightedWord('');
+      return;
+    }
 
     const loadingKey = `dict-${cleanWord}`;
     if (loadingStates[loadingKey]) return;
@@ -409,7 +470,13 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       addResult('dictionary', { ...result, originalSentence: context });
       
       // Update local set to highlight immediately after saving
-      const newWord = { word: cleanWord, reading_id: notebookId };
+      const newWord = {
+        word: cleanWord,
+        context,
+        url: currentUrl,
+        reading_id: notebookId,
+        data: result
+      };
       setSavedWordsList(prev => [...prev, newWord]);
     } catch (err) {
       console.error(err);
@@ -419,7 +486,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
   };
 
    const renderWord = (word: string, context: string, punct?: string) => {
-    const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").toLowerCase().trim();
+    const cleanWord = normalizeWord(word);
     const isDeepLinkHighlighted = highlightedWord && cleanWord === highlightedWord.toLowerCase();
     const isSavedHighlighted = showSavedHighlights && savedWordsSet.has(cleanWord);
     const isHighlighted = isDeepLinkHighlighted || isSavedHighlighted;
@@ -887,11 +954,14 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                         {makeInteractive(children)}
                       </p>
                     ),
-                    li: ({ children }) => (
-                      <li className="mb-3 text-lg text-gray-700 dark:text-gray-300 ml-1 leading-relaxed">
-                        {makeInteractive(children)}
-                      </li>
-                    ),
+                    li: ({ node, children, ...props }) => {
+                      const hasBlockLevel = node?.children?.some((c: any) => c.type === 'element' && ['p', 'div', 'ul', 'ol', 'blockquote', 'pre', 'table'].includes(c.tagName));
+                      return (
+                        <li className="mb-3 ml-1 text-lg leading-relaxed text-gray-700 dark:text-gray-300 [&_p]:inline [&_p]:mb-0 [&_p]:leading-relaxed" {...props}>
+                          {hasBlockLevel ? children : makeInteractive(children)}
+                        </li>
+                      );
+                    },
                     ul: ({ children }) => (
                       <ul className="list-disc list-outside ml-6 mb-8 space-y-3">
                         {children}
@@ -1018,7 +1088,13 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
               </div>
             ) : (
               results.map((res) => (
-                <div key={res.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div
+                  key={res.id}
+                  ref={(el) => { desktopResultRefs.current[res.id] = el; }}
+                  className={`animate-in fade-in slide-in-from-bottom-2 duration-300 rounded-2xl transition-all ${
+                    focusedResultId === res.id ? 'ring-2 ring-pink-400 shadow-lg shadow-pink-200/40' : ''
+                  }`}
+                >
                   {res.type === 'analysis' && (
                     <ResultDisplay result={res.data} compact={true} />
                   )}
@@ -1087,7 +1163,13 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
                 </div>
               ) : (
                 results.slice().reverse().map((res) => (
-                  <div key={res.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div
+                    key={res.id}
+                    ref={(el) => { mobileResultRefs.current[res.id] = el; }}
+                    className={`animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-2xl transition-all ${
+                      focusedResultId === res.id ? 'ring-2 ring-pink-400 shadow-lg shadow-pink-200/40' : ''
+                    }`}
+                  >
                     {res.type === 'analysis' && <ResultDisplay result={res.data} compact={true} />}
                     {res.type === 'dictionary' && <QuickLookupDisplay result={res.data} />}
                     {res.type === 'translation' && (
