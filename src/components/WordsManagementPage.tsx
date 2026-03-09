@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   getSavedWordsService, 
   deleteSavedWordService, 
   updateSavedWordService, 
-  batchDeleteSavedWordsService 
+  batchDeleteSavedWordsService,
+  exportSavedWordsService,
+  importSavedWordsService
 } from '../services/geminiService';
 import type { SavedWord, SavedWordEncounter } from '../types';
 import {
   Trash2, Edit2, Check, X, Search,
   ChevronLeft, ChevronRight,
-  BookOpen, ExternalLink
+  BookOpen, ExternalLink, Download, Upload, Loader2
 } from 'lucide-react';
 import { getSavedWordEncounters, getSavedWordLatestLookup } from '../utils/savedWords';
 import type { QuickLookupResult } from '../types';
@@ -33,6 +35,10 @@ export const WordsManagementPage: React.FC = () => {
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= DETAIL_SIDEBAR_DESKTOP_BREAKPOINT : true
   );
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     fetchWords();
@@ -193,6 +199,60 @@ export const WordsManagementPage: React.FC = () => {
     setIsDetailSidebarResizing(true);
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    setImportSummary(null);
+    try {
+      const payload = await exportSavedWordsService();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeDate = (payload.exported_at || new Date().toISOString()).replace(/[:\s]/g, '-');
+      a.href = url;
+      a.download = `smash-english-words-${safeDate}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('导出失败');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePickImportFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportSummary(null);
+    try {
+      const rawText = await file.text();
+      const parsed = JSON.parse(rawText);
+      const payload = Array.isArray(parsed) ? { words: parsed } : parsed;
+
+      if (!payload || !Array.isArray(payload.words)) {
+        throw new Error('无效 JSON 格式，缺少 words 数组');
+      }
+
+      const result = await importSavedWordsService(payload);
+      setImportSummary(`导入完成：共 ${result.total} 条，新增 ${result.imported}，合并 ${result.merged}，跳过 ${result.skipped}`);
+      await fetchWords();
+    } catch (err) {
+      console.error(err);
+      alert('导入失败，请确认文件是从词库导出的 JSON，或包含合法的 words 数组。');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-8">
@@ -208,7 +268,30 @@ export const WordsManagementPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <button
+              onClick={handlePickImportFile}
+              disabled={isImporting}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all active:scale-95 disabled:opacity-60"
+            >
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              导入 JSON
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300 rounded-xl font-bold text-sm hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-all active:scale-95 disabled:opacity-60"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              导出 JSON
+            </button>
             {selectedIds.length > 0 && (
               <button 
                 onClick={handleBatchDelete}
@@ -230,6 +313,12 @@ export const WordsManagementPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {importSummary && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:text-emerald-300">
+            {importSummary}
+          </div>
+        )}
 
         {/* Table Container */}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">

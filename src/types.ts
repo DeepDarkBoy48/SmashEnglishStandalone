@@ -91,8 +91,34 @@ export interface Message {
   type?: 'text' | 'analysis_result' | 'dictionary_result' | 'quick_lookup_result' | 'video_control';
 }
 
-// --- Model Configuration ---
-export type ModelLevel = 'mini' | 'quick' | 'deep';
+// --- LLM Configuration ---
+export type ThinkingLevel = 'default' | 'minimal' | 'low' | 'medium' | 'high';
+export type LlmFeatureKey =
+  | 'analysis'
+  | 'dictionary'
+  | 'writing'
+  | 'chat'
+  | 'quick_lookup'
+  | 'rapid_lookup'
+  | 'translate'
+  | 'translate_advanced'
+  | 'daily_summary'
+  | 'review_article';
+
+export interface FeatureLLMConfig {
+  feature: LlmFeatureKey;
+  label: string;
+  description: string;
+  model: string;
+  thinking_level: ThinkingLevel;
+}
+
+export interface FeatureLLMConfigResponse {
+  features: FeatureLLMConfig[];
+}
+
+export type UserFeatureLLMOverride = Partial<Pick<FeatureLLMConfig, 'model' | 'thinking_level'>>;
+export type UserFeatureLLMOverrides = Partial<Record<LlmFeatureKey, UserFeatureLLMOverride>>;
 
 // --- Page Mode ---
 export type PageMode = 'writing' | 'reading';  // 写作纠错 | 文章精读
@@ -174,6 +200,19 @@ export interface SavedWordEncounter {
 
 export interface SavedWordsResponse {
   words: SavedWord[];
+}
+
+export interface SavedWordsExportResponse {
+  version: number;
+  exported_at: string;
+  words: SavedWord[];
+}
+
+export interface SavedWordsImportResponse {
+  total: number;
+  imported: number;
+  merged: number;
+  skipped: number;
 }
 
 export interface DailyNote {

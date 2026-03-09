@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getStoredApiKey, getStoredLlmOverrides } from "./llmConfig";
 
 // Create axios instance
 const instance = axios.create({
@@ -9,10 +10,14 @@ const instance = axios.create({
 // Request interceptor
 instance.interceptors.request.use(
   (config) => {
-    // Add Gemini API Key if present in localStorage
-    const geminiKey = localStorage.getItem("smash_gemini_api_key");
+    const geminiKey = getStoredApiKey();
     if (geminiKey) {
       config.headers["X-Gemini-API-Key"] = geminiKey;
+    }
+
+    const llmOverrides = getStoredLlmOverrides();
+    if (Object.keys(llmOverrides).length > 0) {
+      config.headers["X-Gemini-Feature-Config"] = JSON.stringify(llmOverrides);
     }
     return config;
   },

@@ -9,6 +9,8 @@ import type {
   TranslateResult, 
   RapidLookupResult, 
   SavedWordsResponse, 
+  SavedWordsExportResponse,
+  SavedWordsImportResponse,
   DailyNotesResponse, 
   NoteDetailResponse,
   VideoNotebook,
@@ -20,6 +22,7 @@ import type {
   FSRSFeedbackRequest,
   SavedWord
 } from "../types";
+import type { FeatureLLMConfigResponse } from "../types";
 
 // --- Public Services ---
 
@@ -65,12 +68,25 @@ export const translateAdvancedService = (data: {
 }): Promise<TranslateResult> => {
   return request.post('/fastapi/translate-advanced', data) as Promise<TranslateResult>;
 };
+
+export const getFeatureLlmConfigsService = (): Promise<FeatureLLMConfigResponse> => {
+  return request.get('/fastapi/llm-configs') as Promise<FeatureLLMConfigResponse>;
+};
+
 export const rapidLookupService = (word: string, context: string): Promise<RapidLookupResult> => {
   return request.post('/fastapi/rapid-lookup', { word, context }) as Promise<RapidLookupResult>;
 };
 
 export const getSavedWordsService = (): Promise<SavedWordsResponse> => {
   return request.get('/fastapi/saved-words') as Promise<SavedWordsResponse>;
+};
+
+export const exportSavedWordsService = (): Promise<SavedWordsExportResponse> => {
+  return request.get('/fastapi/saved-words/export') as Promise<SavedWordsExportResponse>;
+};
+
+export const importSavedWordsService = (payload: { version?: number; exported_at?: string; words: any[] }): Promise<SavedWordsImportResponse> => {
+  return request.post('/fastapi/saved-words/import', payload) as Promise<SavedWordsImportResponse>;
 };
 
 export const getDailyNotesService = (): Promise<DailyNotesResponse> => {
