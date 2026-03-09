@@ -6,11 +6,13 @@ import {
   batchDeleteSavedWordsService 
 } from '../services/geminiService';
 import type { SavedWord, SavedWordEncounter } from '../types';
-import { 
+import {
   Trash2, Edit2, Check, X, Search,
   ChevronLeft, ChevronRight,
   BookOpen, ExternalLink
 } from 'lucide-react';
+import { getSavedWordEncounters, getSavedWordLatestLookup } from '../utils/savedWords';
+import type { QuickLookupResult } from '../types';
 
 export const WordsManagementPage: React.FC = () => {
   const DETAIL_SIDEBAR_MIN_WIDTH = 440;
@@ -126,22 +128,22 @@ export const WordsManagementPage: React.FC = () => {
   };
 
   const handleStartEdit = (word: SavedWord) => {
+    const latestLookup = getSavedWordLatestLookup(word);
     setEditingId(word.id);
     setEditFormData({
       word: word.word,
-      meaning: word.data?.contextMeaning || word.data?.m || ''
+      meaning: latestLookup?.contextMeaning || ''
     });
   };
 
   const handleSaveEdit = async (id: number) => {
     try {
-      const wordToUpdate = words.find(w => w.id === id);
-      if (!wordToUpdate) return;
+      const updatedWord = await updateSavedWordService(id, {
+        word: editFormData.word,
+        data: { contextMeaning: editFormData.meaning }
+      });
 
-      const newData = { ...wordToUpdate.data, contextMeaning: editFormData.meaning };
-      await updateSavedWordService(id, { word: editFormData.word, data: newData });
-      
-      setWords(words.map(w => w.id === id ? { ...w, word: editFormData.word, data: newData } : w));
+      setWords(words.map(w => w.id === id ? updatedWord : w));
       setEditingId(null);
     } catch (err) {
       alert('保存失败');
@@ -166,39 +168,17 @@ export const WordsManagementPage: React.FC = () => {
 
   const filteredWords = words.filter(w => 
     w.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (w.data?.contextMeaning || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (getSavedWordLatestLookup(w)?.contextMeaning || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getEncounters = (word: SavedWord): SavedWordEncounter[] => {
-    if (Array.isArray(word.encounters) && word.encounters.length > 0) {
-      return [...word.encounters].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-    }
-    return [{
-      key: `legacy-${word.id}`,
-      context: word.context || '',
-      url: word.url || word.data?.url,
-      note_id: word.note_id,
-      reading_id: word.reading_id,
-      video_id: word.video_id,
-      created_at: word.created_at,
-      lookup: {
-        word: word.word,
-        contextMeaning: word.data?.contextMeaning || word.data?.m || '',
-        partOfSpeech: word.data?.partOfSpeech || word.data?.p || '',
-        grammarRole: word.data?.grammarRole || '',
-        explanation: word.data?.explanation || '',
-        otherMeanings: Array.isArray(word.data?.otherMeanings) ? word.data.otherMeanings : []
-      }
-    }];
-  };
+  const getEncounters = (word: SavedWord): SavedWordEncounter[] => getSavedWordEncounters(word);
 
   const activeWord = activeWordId ? (words.find(w => w.id === activeWordId) || null) : null;
   const activeWordEncounters = activeWord ? getEncounters(activeWord) : [];
   const safeEncounterIndex = Math.min(activeEncounterIndex, Math.max(activeWordEncounters.length - 1, 0));
   const activeEncounter = activeWordEncounters[safeEncounterIndex];
-  const activeLookup = activeEncounter?.lookup || activeWord?.data || {};
-  const activeLegacyMeaning = activeWord?.data?.m;
-  const activeSourceUrl = activeEncounter?.url || activeWord?.url || activeLookup?.url;
+  const activeLookup: QuickLookupResult | null = activeEncounter?.lookup || (activeWord ? getSavedWordLatestLookup(activeWord) : null);
+  const activeSourceUrl = activeEncounter?.url;
 
   const openWordDetail = (word: SavedWord) => {
     if (editingId === word.id) return;
@@ -291,9 +271,11 @@ export const WordsManagementPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredWords.map((word) => (
-                    <tr 
-                      key={word.id} 
+                  filteredWords.map((word) => {
+                    const latestLookup = getSavedWordLatestLookup(word);
+                    return (
+                    <tr
+                      key={word.id}
                       onClick={() => openWordDetail(word)}
                       className={`group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer ${selectedIds.includes(word.id) ? 'bg-pink-50/20 dark:bg-pink-900/10' : ''}`}
                     >
@@ -318,7 +300,7 @@ export const WordsManagementPage: React.FC = () => {
                         ) : (
                           <div className="flex flex-col">
                             <span className="font-bold text-gray-900 dark:text-white">{word.word}</span>
-                            <span className="text-[10px] text-gray-400 uppercase font-black">{word.data?.partOfSpeech}</span>
+                            <span className="text-[10px] text-gray-400 uppercase font-black">{latestLookup?.partOfSpeech}</span>
                           </div>
                         )}
                       </td>
@@ -333,7 +315,7 @@ export const WordsManagementPage: React.FC = () => {
                           />
                         ) : (
                           <span className="text-gray-600 dark:text-gray-400 text-sm line-clamp-1">
-                            {word.data?.contextMeaning || word.data?.m}
+                            {latestLookup?.contextMeaning}
                           </span>
                         )}
                       </td>
@@ -401,7 +383,7 @@ export const WordsManagementPage: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )})
                 )}
               </tbody>
             </table>
@@ -496,14 +478,14 @@ export const WordsManagementPage: React.FC = () => {
                     <div className="space-y-2">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">文中释义</div>
                     <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">
-                      {activeLookup?.contextMeaning || activeLegacyMeaning || '暂无释义'}
+                      {activeLookup?.contextMeaning || '暂无释义'}
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">原句上下文</div>
                     <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-700 dark:text-gray-200 leading-relaxed">
-                      "{activeEncounter?.context || activeWord.context || '暂无上下文'}"
+                      "{activeEncounter?.context || '暂无上下文'}"
                     </div>
                   </div>
 

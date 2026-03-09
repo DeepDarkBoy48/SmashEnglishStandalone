@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ReviewPage } from './ReviewPage';
+import { getSavedWordEncounters, getSavedWordLatestLookup } from '../utils/savedWords';
 
 export const SavedWordsPage: React.FC = () => {
   const [notes, setNotes] = useState<DailyNote[] | null>(null);
@@ -101,31 +102,7 @@ export const SavedWordsPage: React.FC = () => {
     }
   };
 
-  const getEncounters = (item: SavedWord): SavedWordEncounter[] => {
-    if (item.encounters && item.encounters.length > 0) {
-      return [...item.encounters].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-    }
-
-    const fallbackLookup: QuickLookupResult = {
-      word: item.word,
-      contextMeaning: item.data?.contextMeaning || item.data?.m || '',
-      partOfSpeech: item.data?.partOfSpeech || item.data?.p || '',
-      grammarRole: item.data?.grammarRole || '',
-      explanation: item.data?.explanation || '',
-      otherMeanings: item.data?.otherMeanings || []
-    };
-
-    return [{
-      key: `legacy-${item.id}`,
-      context: item.context,
-      url: item.url || item.data?.url,
-      note_id: item.note_id,
-      reading_id: item.reading_id || item.data?.reading_id,
-      video_id: item.video_id || item.data?.video_id,
-      created_at: item.created_at,
-      lookup: fallbackLookup
-    }];
-  };
+  const getEncounters = (item: SavedWord): SavedWordEncounter[] => getSavedWordEncounters(item);
 
   const getEncounterIndex = (item: SavedWord): number => {
     const encounters = getEncounters(item);
@@ -196,7 +173,7 @@ export const SavedWordsPage: React.FC = () => {
           const meaning = lookup.contextMeaning || '';
           const pos = lookup.partOfSpeech || '';
           const explanation = lookup.explanation || '';
-          const sourceUrl = enc.url || item.url || '';
+          const sourceUrl = enc.url || '';
           const highlightedContext = (enc.context || '').replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
           content += `#### 来源 ${idx + 1}/${encounters.length}${pos ? ` [${pos.toUpperCase()}]` : ''}\n\n`;
           content += `**释义**: ${meaning}\n\n`;
@@ -242,7 +219,7 @@ export const SavedWordsPage: React.FC = () => {
             const meaning = lookup.contextMeaning || '';
             const pos = lookup.partOfSpeech || '';
             const explanation = lookup.explanation || '';
-            const sourceUrl = enc.url || item.url || '';
+            const sourceUrl = enc.url || '';
             const highlightedContext = (enc.context || '').replace(new RegExp(`(${item.word})`, 'gi'), '**$1**');
             return `## 来源 ${idx + 1}/${encounters.length}${pos ? ` [${pos.toUpperCase()}]` : ''}\n\n` +
               `**${meaning}**\n\n` +
@@ -281,11 +258,11 @@ export const SavedWordsPage: React.FC = () => {
     if (encounters.length === 0) return null;
     const index = getEncounterIndex(item);
     const activeEncounter = encounters[index] || encounters[0];
-    const data = (activeEncounter?.lookup || item.data || {}) as QuickLookupResult;
-    const activeContext = activeEncounter?.context || item.context || '';
-    const readingId = activeEncounter?.reading_id || item.reading_id || data?.reading_id;
-    const videoId = activeEncounter?.video_id || item.video_id || data?.video_id;
-    const sourceUrl = activeEncounter?.url || item.url || data?.url;
+    const data = (activeEncounter?.lookup || getSavedWordLatestLookup(item) || {}) as QuickLookupResult;
+    const activeContext = activeEncounter?.context || '';
+    const readingId = activeEncounter?.reading_id;
+    const videoId = activeEncounter?.video_id;
+    const sourceUrl = activeEncounter?.url;
 
     return (
       <div key={item.id} className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 sm:p-8 hover:shadow-2xl hover:border-pink-200 dark:hover:border-pink-900/30 transition-all duration-500 flex flex-col h-full">
@@ -340,7 +317,7 @@ export const SavedWordsPage: React.FC = () => {
 
         <div className="mb-6">
           <p className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-            {data?.contextMeaning || (data as any)?.m}
+            {data?.contextMeaning}
           </p>
         </div>
 

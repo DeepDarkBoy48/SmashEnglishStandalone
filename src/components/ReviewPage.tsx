@@ -13,6 +13,8 @@ import {
   Mic2, BookText, Copy, ClipboardCheck, FilePlus
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { getSavedWordLatestEncounter } from '../utils/savedWords';
+import type { QuickLookupResult } from '../types';
 
 interface ReviewPageProps {
   onBack: () => void;
@@ -324,6 +326,9 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
               {words.map((item) => {
                 const isFinished = !!feedbackStatus[item.id];
                 const isFlipped = flippedIds.has(item.id);
+                const latestEncounter = getSavedWordLatestEncounter(item);
+                const activeLookup: QuickLookupResult | null = latestEncounter?.lookup ?? null;
+                const activeContext = latestEncounter?.context || '';
                 return (
                   <div key={item.id} id={`word-card-${item.id}`} className={`relative w-full h-[450px] transition-all duration-500 [perspective:1000px] group ${isFinished ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                     <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
@@ -335,7 +340,7 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                               <MessageSquare className="w-3 h-3" /> Context
                             </div>
                             <div className="text-xl text-gray-800 dark:text-gray-100 leading-relaxed font-medium">
-                              "{item.context.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => part.toLowerCase() === item.word.toLowerCase() ? <span key={i} className="text-pink-600 dark:text-pink-400 font-bold underline decoration-2 underline-offset-4">{part}</span> : part)}"
+                              "{activeContext.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => part.toLowerCase() === item.word.toLowerCase() ? <span key={i} className="text-pink-600 dark:text-pink-400 font-bold underline decoration-2 underline-offset-4">{part}</span> : part)}"
                             </div>
                         </div>
                         <div className="pt-6 border-t border-gray-50 dark:border-gray-800">
@@ -358,13 +363,13 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                              </button>
                            </div>
                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30 px-2.5 py-1 rounded-full border border-pink-100 dark:border-pink-800/20 uppercase">{item.data?.partOfSpeech}</span>
-                              {item.data?.grammarRole && <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full border border-indigo-100 dark:border-indigo-800/20 uppercase">{item.data.grammarRole}</span>}
+                              <span className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30 px-2.5 py-1 rounded-full border border-pink-100 dark:border-pink-800/20 uppercase">{activeLookup?.partOfSpeech}</span>
+                              {activeLookup?.grammarRole && <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full border border-indigo-100 dark:border-indigo-800/20 uppercase">{activeLookup.grammarRole}</span>}
                            </div>
                            <div className="space-y-4">
-                              <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{item.data?.contextMeaning || item.data?.m}</p>
-                              <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800">{item.data?.explanation}</div>
-                              {item.data?.otherMeanings?.map((m: any, idx: number) => (
+                              <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{activeLookup?.contextMeaning}</p>
+                              <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800">{activeLookup?.explanation}</div>
+                              {activeLookup?.otherMeanings?.map((m: any, idx: number) => (
                                 <div key={idx} className="flex flex-col gap-1 pl-3 border-l-2 border-pink-100 dark:border-pink-900/30">
                                    <span className="font-bold text-base text-gray-800 dark:text-gray-200">{m.meaning}</span>
                                    <p className="text-sm text-gray-500">"{m.example}"</p>
@@ -430,17 +435,19 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
               {(() => {
                 const item = words.find(w => w.id === activeModalWordId);
                 if (!item) return null;
+                const latestEncounter = getSavedWordLatestEncounter(item);
+                const activeLookup: QuickLookupResult | null = latestEncounter?.lookup ?? null;
                 return (
                   <>
                     <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-800/20 uppercase">
-                            {item.data?.partOfSpeech}
+                            {activeLookup?.partOfSpeech}
                           </span>
-                          {item.data?.grammarRole && (
+                          {activeLookup?.grammarRole && (
                             <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-800/20 uppercase">
-                              {item.data.grammarRole}
+                              {activeLookup.grammarRole}
                             </span>
                           )}
                         </div>
@@ -451,22 +458,22 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">文中释义</div>
                           <p className="text-2xl font-bold text-pink-600 dark:text-pink-400 leading-tight">
-                            {item.data?.contextMeaning || item.data?.m}
+                            {activeLookup?.contextMeaning}
                           </p>
                         </div>
 
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI 深度解析</div>
                           <div className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-3xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800">
-                            {item.data?.explanation}
+                            {activeLookup?.explanation}
                           </div>
                         </div>
 
-                        {item.data?.otherMeanings && item.data.otherMeanings.length > 0 && (
+                        {activeLookup?.otherMeanings && activeLookup.otherMeanings.length > 0 && (
                           <div className="space-y-3">
                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">其他常见释义</div>
                             <div className="space-y-3">
-                              {item.data.otherMeanings.map((m: any, idx: number) => (
+                              {activeLookup.otherMeanings.map((m: any, idx: number) => (
                                 <div key={idx} className="flex flex-col gap-1.5 pl-4 border-l-2 border-pink-100 dark:border-pink-900/30">
                                    <span className="font-bold text-base text-gray-800 dark:text-gray-200">{m.meaning}</span>
                                    <p className="text-sm text-gray-500 leading-snug">"{m.example}"</p>

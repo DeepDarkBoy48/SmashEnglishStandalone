@@ -461,7 +461,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <div className="h-full flex flex-col bg-gray-50 dark:bg-black text-gray-800 dark:text-gray-200 font-sans transition-colors overflow-hidden">
         {!isImmersive && (
           <Header

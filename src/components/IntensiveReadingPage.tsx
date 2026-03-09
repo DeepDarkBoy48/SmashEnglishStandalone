@@ -22,6 +22,7 @@ import { ResultDisplay } from './ResultDisplay';
 import { QuickLookupDisplay } from './AiSharedComponents';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { buildLocalEncounter, getSavedWordEncounters, upsertLocalSavedWord } from '../utils/savedWords';
 
 interface ResultItem {
   id: string;
@@ -296,7 +297,7 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       const wordSet = new Set(words.map(w => w.word.toLowerCase().trim()));
       setSavedWordsSet(wordSet);
     } else {
-      const filtered = words.filter(w => w.reading_id === notebookId);
+      const filtered = words.filter(w => getSavedWordEncounters(w).some(enc => enc.reading_id === notebookId));
       const wordSet = new Set(filtered.map(w => w.word.toLowerCase().trim()));
       setSavedWordsSet(wordSet);
     }
@@ -442,18 +443,27 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       return;
     }
 
-    // If the word already exists in local saved words cache, reuse it and skip AI request.
+    // Only reuse a cached lookup when this article already has its own encounter for the word.
     const sameWordSaved = savedWordsList.filter((item) => normalizeWord(item.word || "") === normalized);
-    const prioritizedSaved = sameWordSaved.find((item) => item.reading_id === notebookId) || sameWordSaved[0];
-    const cachedData = prioritizedSaved?.data;
+    const prioritizedSaved = notebookId
+      ? sameWordSaved.find((item) => getSavedWordEncounters(item).some(enc => enc.reading_id === notebookId))
+      : sameWordSaved[0];
+    const prioritizedEncounter = prioritizedSaved
+      ? (
+        notebookId
+          ? getSavedWordEncounters(prioritizedSaved).find(enc => enc.reading_id === notebookId) || null
+          : getSavedWordEncounters(prioritizedSaved)[0] || null
+      )
+      : null;
+    const cachedData = prioritizedEncounter?.lookup;
     if (prioritizedSaved && cachedData && typeof cachedData === 'object') {
       addResult('dictionary', {
         ...cachedData,
         word: cachedData.word || prioritizedSaved.word || cleanWord,
         originalSentence: context,
-        url: cachedData.url || prioritizedSaved.url,
-        reading_id: cachedData.reading_id ?? prioritizedSaved.reading_id,
-        video_id: cachedData.video_id ?? prioritizedSaved.video_id
+        url: prioritizedEncounter?.url,
+        reading_id: prioritizedEncounter?.reading_id,
+        video_id: prioritizedEncounter?.video_id
       });
       if (highlightedWord) setHighlightedWord('');
       return;
@@ -470,14 +480,16 @@ export const IntensiveReadingPage: React.FC<IntensiveReadingPageProps> = ({ init
       addResult('dictionary', { ...result, originalSentence: context });
       
       // Update local set to highlight immediately after saving
-      const newWord = {
-        word: cleanWord,
+      const encounter = buildLocalEncounter(
+        cleanWord,
         context,
-        url: currentUrl,
-        reading_id: notebookId,
-        data: result
-      };
-      setSavedWordsList(prev => [...prev, newWord]);
+        { ...result, word: result.word || cleanWord },
+        {
+          url: currentUrl,
+          reading_id: notebookId || undefined
+        }
+      );
+      setSavedWordsList(prev => upsertLocalSavedWord(prev, cleanWord, encounter));
     } catch (err) {
       console.error(err);
     } finally {

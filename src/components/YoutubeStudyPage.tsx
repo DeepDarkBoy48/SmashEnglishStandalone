@@ -26,6 +26,7 @@ import {
 import type { AnalysisResult, QuickLookupResult, VideoNotebook } from '../types';
 import { ResultDisplay } from './ResultDisplay';
 import { QuickLookupDisplay } from './AiSharedComponents';
+import { buildLocalEncounter, getSavedWordEncounters, upsertLocalSavedWord } from '../utils/savedWords';
 
 // Extend Window interface for YouTube API
 declare global {
@@ -150,7 +151,7 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
       const wordSet = new Set(words.map(w => w.word.toLowerCase().trim()));
       setSavedWordsSet(wordSet);
     } else {
-      const filtered = words.filter(w => w.video_id === notebookId);
+      const filtered = words.filter(w => getSavedWordEncounters(w).some(enc => enc.video_id === notebookId));
       const wordSet = new Set(filtered.map(w => w.word.toLowerCase().trim()));
       setSavedWordsSet(wordSet);
     }
@@ -641,8 +642,16 @@ export const YoutubeStudyPage: React.FC<YoutubeStudyPageProps> = ({
         }));
         
         // Update local list for immediate highlight
-        const newWord = { word: cleanWord, video_id: notebookId };
-        setSavedWordsList(prev => [...prev, newWord]);
+        const encounter = buildLocalEncounter(
+          cleanWord,
+          context,
+          { ...result, word: result.word || cleanWord },
+          {
+            url: currentUrl,
+            video_id: notebookId || undefined
+          }
+        );
+        setSavedWordsList(prev => upsertLocalSavedWord(prev, cleanWord, encounter));
 
         setBigTextResultOrder(prev => [
           { type: 'dictionary', key: cacheKey },
