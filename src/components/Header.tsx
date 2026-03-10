@@ -3,7 +3,7 @@ import { Sparkles, Book, PenTool, Star, BookOpen, Languages, Settings } from 'lu
 import { ThemeToggle } from './ThemeToggle';
 import { ApiKeyModal } from './ApiKeyModal';
 import { useState } from 'react';
-import logoUrl from '../assets/smash-english-logo.png';
+import logoUrl from '../assets/smash-english-logo-transparent.png';
 
 interface HeaderProps {
   activeTab: 'analyzer' | 'dictionary' | 'writing' | 'youtube' | 'saved-words' | 'reading' | 'words-management' | 'translate';

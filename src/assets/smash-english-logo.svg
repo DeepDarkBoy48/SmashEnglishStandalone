@@ -1,5 +1,4 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="256" height="256" rx="52" fill="#FFF4D6"/>
   <path d="M28 176C39 191 64 210 100 218C151 229 201 211 227 188" stroke="#FFD27A" stroke-width="18" stroke-linecap="round"/>
   <path d="M54 42C44 69 42 101 48 136C56 183 87 210 126 210C170 210 205 182 212 134C219 89 198 53 159 43C131 36 107 47 92 64C77 48 66 40 54 42Z" fill="#FF8A4C"/>
   <path d="M64 53C54 79 53 106 58 133C65 173 91 198 126 198C164 198 193 173 200 132C206 96 189 67 158 58C133 50 112 59 98 76C83 61 73 53 64 53Z" fill="#FFFDF8"/>
