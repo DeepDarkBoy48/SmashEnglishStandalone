@@ -474,18 +474,6 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                           </p>
                         </div>
 
-                        {baseForm && (
-                          <div className="space-y-2">
-                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">原型信息</div>
-                            <div className="bg-gray-50 dark:bg-gray-900/50 p-3.5 rounded-2xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800 space-y-2">
-                              <div className="flex items-center gap-2 flex-wrap rounded-xl bg-white/80 px-2.5 py-2 dark:bg-gray-900">
-                                <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                                <span className="font-bold text-gray-900 dark:text-white">{baseForm}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI 深度解析</div>
                           <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl text-xs text-gray-600 dark:text-gray-400 leading-6 border border-gray-100 dark:border-gray-800">
@@ -500,7 +488,7 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                               {activeLookup.otherMeanings.map((m: any, idx: number) => (
                                 <div key={idx} className="flex flex-col gap-1 rounded-xl bg-gray-50/70 px-3 py-2 dark:bg-gray-900/40">
                                    <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{m.meaning}</span>
-                                   <p className="text-xs text-gray-500 leading-5">"{m.example}"</p>
+                                   <p className="text-xs text-gray-700 dark:text-gray-300 leading-6">"{m.example}"</p>
                                 </div>
                               ))}
                             </div>

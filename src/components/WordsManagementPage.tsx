@@ -590,25 +590,13 @@ export const WordsManagementPage: React.FC = () => {
 
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">原句上下文</div>
-                    <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-sm text-gray-700 dark:text-gray-200 leading-6">
+                    <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-sm text-gray-900 dark:text-gray-100 leading-7">
                       "{activeEncounter?.context || '暂无上下文'}"
                     </div>
                   </div>
 
                   {activeLookup?.explanation && (
                     <div className="space-y-1.5">
-                      {activeLookup?.baseForm && activeLookup.baseForm.trim() && (
-                        <div className="space-y-2">
-                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">原型信息</div>
-                          <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap rounded-lg bg-white px-2.5 py-2 dark:bg-gray-900">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                              <span className="text-sm font-bold text-gray-900 dark:text-white">{activeLookup.baseForm}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
                       <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">AI 深度解析</div>
                       <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-6">
                         {activeLookup.explanation}
@@ -631,7 +619,7 @@ export const WordsManagementPage: React.FC = () => {
                               <span className="font-bold text-gray-900 dark:text-white">{meaning.meaning || '—'}</span>
                             </div>
                             {meaning.example && (
-                              <p className="mt-1.5 text-xs text-gray-500 italic leading-5">"{meaning.example}"</p>
+                              <p className="mt-1.5 text-xs text-gray-700 dark:text-gray-300 leading-6">"{meaning.example}"</p>
                             )}
                           </div>
                         ))}

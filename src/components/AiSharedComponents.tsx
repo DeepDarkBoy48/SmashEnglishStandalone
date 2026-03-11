@@ -77,7 +77,7 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
       {result.originalSentence && !hideContext && (
         <div className="mb-3 rounded-lg border border-gray-100 bg-white/90 px-3 py-3 dark:border-gray-700/50 dark:bg-gray-800/60">
           <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">原句</div>
-          <p className="text-sm text-gray-800 dark:text-gray-100 leading-6 font-medium pr-1">
+          <p className="text-sm text-gray-900 dark:text-gray-100 leading-7 font-normal pr-1">
             {(() => {
               const text = result.originalSentence;
               const word = result.word;
@@ -117,20 +117,6 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
         </div>
       </div>
 
-      {baseForm && (
-        <div className={`rounded-lg border ${isPinned ? 'mb-2.5 p-2.5 bg-amber-50/70 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30' : 'mb-3 p-3 bg-amber-50/70 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30'}`}>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="text-amber-500 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">原型信息</span>
-          </div>
-          <div className="space-y-1.5 text-sm text-gray-700 dark:text-gray-200">
-            <div className="flex items-center gap-2 flex-wrap rounded-lg bg-white/70 px-2.5 py-2 dark:bg-gray-900/50">
-              <span className="text-xs text-gray-400 dark:text-gray-500">原型</span>
-              <span className="font-semibold">{baseForm}</span>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* 解释 */}
       <div className={`rounded-lg p-2.5 border ${isPinned ? 'bg-white/80 dark:bg-gray-900/30 border-blue-100/50 dark:border-gray-800' : 'bg-white/60 dark:bg-gray-900/40 border-blue-100/50 dark:border-gray-700'}`}>
         <div className="text-xs text-gray-600 dark:text-gray-300 leading-6">
@@ -155,10 +141,10 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
               <div key={idx} className="flex flex-col gap-1 rounded-lg bg-white/50 px-2.5 py-2 dark:bg-gray-900/30">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{m.meaning}</span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">({m.partOfSpeech})</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">({m.partOfSpeech})</span>
                 </div>
                 {m.example && (
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 italic line-clamp-2 pl-2 border-l border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-6 pl-2 border-l border-gray-200 dark:border-gray-700">
                     "{m.example}"
                   </p>
                 )}

@@ -342,7 +342,7 @@ export const SavedWordsPage: React.FC = () => {
 
         <div className="relative bg-gray-50 dark:bg-white/5 rounded-xl p-3.5 sm:p-4 mb-4 border border-gray-100 dark:border-white/5">
           <MessageSquare className="absolute -top-3 -left-3 w-8 h-8 text-pink-200/50 dark:text-pink-900/20 fill-current" />
-          <p className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-6 font-medium relative z-10">
+          <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100 leading-7 font-normal relative z-10">
             "{activeContext.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => 
               part.toLowerCase() === item.word.toLowerCase() 
                 ? <span key={i} className="text-pink-600 dark:text-pink-400 font-bold decoration-pink-300 dark:decoration-pink-700 underline underline-offset-4 decoration-2">{part}</span>
@@ -352,21 +352,6 @@ export const SavedWordsPage: React.FC = () => {
         </div>
 
         <div className="space-y-3 flex-1">
-          {data?.baseForm && data.baseForm.trim() && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                <BookOpen className="w-3 h-3 text-amber-400" />
-                原型信息
-              </div>
-              <div className="bg-amber-50/40 dark:bg-amber-900/10 rounded-xl p-3 border border-amber-100/50 dark:border-amber-900/20 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap rounded-lg bg-white/80 px-2.5 py-2 dark:bg-gray-900/60">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">{data.baseForm}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {data?.explanation && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
@@ -395,7 +380,7 @@ export const SavedWordsPage: React.FC = () => {
                       <span className="text-sm font-bold text-gray-900 dark:text-white">{m.meaning}</span>
                     </div>
                     {m.example && (
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 italic font-serif leading-5">
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-6">
                         "{m.example}"
                       </p>
                     )}
