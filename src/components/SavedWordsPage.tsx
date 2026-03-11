@@ -299,31 +299,50 @@ export const SavedWordsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 mb-4">
-          <h3 className="text-xl sm:text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase">{item.word}</h3>
-          <div className="flex flex-wrap gap-2">
-            {data?.partOfSpeech && (
-              <span className="text-[10px] font-black text-pink-500 bg-pink-50 dark:bg-pink-900/20 px-2 py-1 rounded-md uppercase tracking-wider ring-1 ring-pink-100 dark:ring-pink-900/30">
-                {data.partOfSpeech}
-              </span>
-            )}
-            {data?.grammarRole && (
-              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-md tracking-wider ring-1 ring-indigo-100 dark:ring-indigo-900/30">
-                {data.grammarRole}
-              </span>
-            )}
-          </div>
-        </div>
+        {(() => {
+          const lookupWord = String(item.word || '').trim();
+          const baseForm = String(data?.baseForm || '').trim();
+          const displayWord = baseForm || lookupWord;
+          const currentForm = lookupWord && lookupWord.toLowerCase() !== displayWord.toLowerCase() ? lookupWord : '';
 
-        <div className="mb-6">
-          <p className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+          return (
+            <div className="mb-3 space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">原型</div>
+                  <h3 className="text-lg sm:text-xl font-black tracking-tight text-gray-900 dark:text-white uppercase">{displayWord}</h3>
+                  {currentForm && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      当前词形 <span className="font-semibold text-gray-700 dark:text-gray-200">{currentForm}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data?.partOfSpeech && (
+                    <span className="text-[10px] font-black text-pink-500 bg-pink-50 dark:bg-pink-900/20 px-2 py-1 rounded-md uppercase tracking-wider ring-1 ring-pink-100 dark:ring-pink-900/30">
+                      {data.partOfSpeech}
+                    </span>
+                  )}
+                  {data?.grammarRole && (
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-md tracking-wider ring-1 ring-indigo-100 dark:ring-indigo-900/30">
+                      {data.grammarRole}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        <div className="mb-4">
+          <p className="text-lg sm:text-xl font-bold bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
             {data?.contextMeaning}
           </p>
         </div>
 
-        <div className="relative bg-gray-50 dark:bg-white/5 rounded-2xl p-4 sm:p-5 mb-6 border border-gray-100 dark:border-white/5">
+        <div className="relative bg-gray-50 dark:bg-white/5 rounded-xl p-3.5 sm:p-4 mb-4 border border-gray-100 dark:border-white/5">
           <MessageSquare className="absolute -top-3 -left-3 w-8 h-8 text-pink-200/50 dark:text-pink-900/20 fill-current" />
-          <p className="text-base sm:text-lg text-gray-800 dark:text-gray-200 leading-relaxed font-medium relative z-10">
+          <p className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-6 font-medium relative z-10">
             "{activeContext.split(new RegExp(`(${item.word})`, 'gi')).map((part, i) => 
               part.toLowerCase() === item.word.toLowerCase() 
                 ? <span key={i} className="text-pink-600 dark:text-pink-400 font-bold decoration-pink-300 dark:decoration-pink-700 underline underline-offset-4 decoration-2">{part}</span>
@@ -332,48 +351,18 @@ export const SavedWordsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="space-y-4 flex-1">
-          {((data?.baseForm && data.baseForm.trim()) || (data?.otherForms && data.otherForms.length > 0)) && (
+        <div className="space-y-3 flex-1">
+          {data?.baseForm && data.baseForm.trim() && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                 <BookOpen className="w-3 h-3 text-amber-400" />
-                词形变化
+                原型信息
               </div>
-              <div className="bg-amber-50/40 dark:bg-amber-900/10 rounded-2xl p-4 border border-amber-100/50 dark:border-amber-900/20 space-y-3">
-                {data?.baseForm && data.baseForm.trim() && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">{data.baseForm}</span>
-                  </div>
-                )}
-                {!!data?.otherForms?.length && (
-                  <div className="space-y-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">其他变形</span>
-                    <div className="grid gap-2">
-                      {data.otherForms.map((formItem: any, idx: number) => {
-                        const formText = typeof formItem === 'string' ? formItem : (formItem?.form || '');
-                        const formPos = typeof formItem === 'string' ? '' : (formItem?.partOfSpeech || '');
-                        const formMeaning = typeof formItem === 'string' ? '' : (formItem?.meaning || '');
-                        if (!formText) return null;
-                        return (
-                          <div key={`${formText}-${idx}`} className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-white/80 dark:bg-gray-900/60 px-3 py-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-gray-900 dark:text-white">{formText}</span>
-                              {formPos && (
-                                <span className="rounded-full border border-amber-200 dark:border-amber-800/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-200">
-                                  {formPos}
-                                </span>
-                              )}
-                            </div>
-                            {formMeaning && (
-                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formMeaning}</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              <div className="bg-amber-50/40 dark:bg-amber-900/10 rounded-xl p-3 border border-amber-100/50 dark:border-amber-900/20 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap rounded-lg bg-white/80 px-2.5 py-2 dark:bg-gray-900/60">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">{data.baseForm}</span>
+                </div>
               </div>
             </div>
           )}
@@ -384,29 +373,29 @@ export const SavedWordsPage: React.FC = () => {
                 <Sparkles className="w-3 h-3 text-pink-400" />
                 AI 深度解析
               </div>
-              <div className="text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed bg-pink-50/30 dark:bg-pink-900/5 rounded-2xl p-4 border border-pink-100/50 dark:border-pink-900/20">
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-6 bg-pink-50/30 dark:bg-pink-900/5 rounded-xl p-3 border border-pink-100/50 dark:border-pink-900/20">
                 <ReactMarkdown>{data.explanation}</ReactMarkdown>
               </div>
             </div>
           )}
 
           {data?.otherMeanings && data.otherMeanings.length > 0 && (
-            <div className="space-y-3 pt-4">
+            <div className="space-y-2 pt-3">
               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                 <BookOpen className="w-3 h-3 text-indigo-400" />
                 其他常用释义
               </div>
-              <div className="grid gap-3">
+              <div className="grid gap-2">
                 {data.otherMeanings.map((m: OtherMeaning, idx: number) => (
-                  <div key={idx} className="bg-indigo-50/30 dark:bg-indigo-900/5 border border-indigo-100/50 dark:border-indigo-900/20 rounded-2xl p-4 group/item hover:bg-white dark:hover:bg-gray-800 transition-all">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div key={idx} className="bg-indigo-50/30 dark:bg-indigo-900/5 border border-indigo-100/50 dark:border-indigo-900/20 rounded-xl p-3 group/item hover:bg-white dark:hover:bg-gray-800 transition-all">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-[10px] font-black text-indigo-500 uppercase px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 rounded">
                         {m.partOfSpeech}
                       </span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">{m.meaning}</span>
                     </div>
                     {m.example && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic font-serif leading-relaxed">
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 italic font-serif leading-5">
                         "{m.example}"
                       </p>
                     )}

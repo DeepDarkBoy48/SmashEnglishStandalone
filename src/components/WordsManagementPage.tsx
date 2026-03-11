@@ -524,7 +524,24 @@ export const WordsManagementPage: React.FC = () => {
                 <div className="flex items-start justify-between gap-4 pr-10">
                   <div className="space-y-3">
                     <div className="text-xs font-black tracking-wider text-gray-400 uppercase">词汇详情</div>
-                    <h2 className="text-4xl font-black text-gray-900 dark:text-white">{activeWord.word}</h2>
+                    {(() => {
+                      const lookupWord = String(activeWord.word || '').trim();
+                      const baseForm = String(activeLookup?.baseForm || '').trim();
+                      const displayWord = baseForm || lookupWord;
+                      const currentForm = lookupWord && lookupWord.toLowerCase() !== displayWord.toLowerCase() ? lookupWord : '';
+
+                      return (
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">原型</div>
+                          <h2 className="text-4xl font-black text-gray-900 dark:text-white">{displayWord}</h2>
+                          {currentForm && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              当前词形 <span className="font-semibold text-gray-700 dark:text-gray-200">{currentForm}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-pink-50 text-pink-600 border border-pink-100 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-900/30 uppercase">
                         {activeLookup?.partOfSpeech || 'N/A'}
@@ -563,78 +580,48 @@ export const WordsManagementPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-8 space-y-6">
-                    <div className="space-y-2">
+                <div className="mt-6 space-y-4">
+                    <div className="space-y-1.5">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">文中释义</div>
-                    <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">
+                    <p className="text-xl font-bold text-pink-600 dark:text-pink-400">
                       {activeLookup?.contextMeaning || '暂无释义'}
                     </p>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">原句上下文</div>
-                    <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-700 dark:text-gray-200 leading-relaxed">
+                    <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-sm text-gray-700 dark:text-gray-200 leading-6">
                       "{activeEncounter?.context || '暂无上下文'}"
                     </div>
                   </div>
 
                   {activeLookup?.explanation && (
-                    <div className="space-y-2">
-                      {((activeLookup?.baseForm && activeLookup.baseForm.trim()) || (activeLookup?.otherForms && activeLookup.otherForms.length > 0)) && (
+                    <div className="space-y-1.5">
+                      {activeLookup?.baseForm && activeLookup.baseForm.trim() && (
                         <div className="space-y-2">
-                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">词形变化</div>
-                          <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 space-y-3">
-                            {activeLookup?.baseForm && activeLookup.baseForm.trim() && (
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                                <span className="text-sm font-bold text-gray-900 dark:text-white">{activeLookup.baseForm}</span>
-                              </div>
-                            )}
-                            {!!activeLookup?.otherForms?.length && (
-                              <div className="space-y-2">
-                                <span className="text-xs text-gray-500 dark:text-gray-400">其他变形</span>
-                                <div className="grid gap-2">
-                                  {activeLookup.otherForms.map((formItem: any, idx: number) => {
-                                    const formText = typeof formItem === 'string' ? formItem : (formItem?.form || '');
-                                    const formPos = typeof formItem === 'string' ? '' : (formItem?.partOfSpeech || '');
-                                    const formMeaning = typeof formItem === 'string' ? '' : (formItem?.meaning || '');
-                                    if (!formText) return null;
-                                    return (
-                                      <div key={`${formText}-${idx}`} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="font-bold text-gray-900 dark:text-white">{formText}</span>
-                                          {formPos && (
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                                              {formPos}
-                                            </span>
-                                          )}
-                                        </div>
-                                        {formMeaning && (
-                                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formMeaning}</div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">原型信息</div>
+                          <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap rounded-lg bg-white px-2.5 py-2 dark:bg-gray-900">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">{activeLookup.baseForm}</span>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">AI 深度解析</div>
-                      <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-6">
                         {activeLookup.explanation}
                       </div>
                     </div>
                   )}
 
                   {!!activeLookup?.otherMeanings?.length && (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">其他常见释义</div>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {activeLookup.otherMeanings.map((meaning: any, idx: number) => (
-                          <div key={idx} className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+                          <div key={idx} className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3">
                             <div className="flex items-center gap-2 flex-wrap">
                               {meaning.partOfSpeech && (
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
@@ -644,7 +631,7 @@ export const WordsManagementPage: React.FC = () => {
                               <span className="font-bold text-gray-900 dark:text-white">{meaning.meaning || '—'}</span>
                             </div>
                             {meaning.example && (
-                              <p className="mt-2 text-sm text-gray-500 italic">"{meaning.example}"</p>
+                              <p className="mt-1.5 text-xs text-gray-500 italic leading-5">"{meaning.example}"</p>
                             )}
                           </div>
                         ))}

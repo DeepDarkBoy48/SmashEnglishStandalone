@@ -437,10 +437,14 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                 if (!item) return null;
                 const latestEncounter = getSavedWordLatestEncounter(item);
                 const activeLookup: QuickLookupResult | null = latestEncounter?.lookup ?? null;
+                const lookupWord = String(item.word || '').trim();
+                const baseForm = String(activeLookup?.baseForm || '').trim();
+                const displayWord = baseForm || lookupWord;
+                const currentForm = lookupWord && lookupWord.toLowerCase() !== displayWord.toLowerCase() ? lookupWord : '';
                 return (
                   <>
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
-                      <div className="space-y-2">
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                      <div className="space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-800/20 uppercase">
                             {activeLookup?.partOfSpeech}
@@ -451,74 +455,52 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ onBack }) => {
                             </span>
                           )}
                         </div>
-                        <h3 className="text-4xl font-bold text-gray-900 dark:text-white">{item.word}</h3>
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">原型</div>
+                          <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{displayWord}</h3>
+                          {currentForm && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              当前词形 <span className="font-semibold text-gray-700 dark:text-gray-200">{currentForm}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">文中释义</div>
-                          <p className="text-2xl font-bold text-pink-600 dark:text-pink-400 leading-tight">
+                          <p className="text-xl font-bold text-pink-600 dark:text-pink-400 leading-tight">
                             {activeLookup?.contextMeaning}
                           </p>
                         </div>
 
-                        {((activeLookup?.baseForm && activeLookup.baseForm.trim()) || (activeLookup?.otherForms && activeLookup.otherForms.length > 0)) && (
+                        {baseForm && (
                           <div className="space-y-2">
-                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">词形变化</div>
-                            <div className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-3xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800 space-y-3">
-                              {activeLookup?.baseForm && activeLookup.baseForm.trim() && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
-                                  <span className="font-bold text-gray-900 dark:text-white">{activeLookup.baseForm}</span>
-                                </div>
-                              )}
-                              {!!activeLookup?.otherForms?.length && (
-                                <div className="space-y-2">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">其他变形</span>
-                                  <div className="grid gap-2">
-                                    {activeLookup.otherForms.map((formItem: any, idx: number) => {
-                                      const formText = typeof formItem === 'string' ? formItem : (formItem?.form || '');
-                                      const formPos = typeof formItem === 'string' ? '' : (formItem?.partOfSpeech || '');
-                                      const formMeaning = typeof formItem === 'string' ? '' : (formItem?.meaning || '');
-                                      if (!formText) return null;
-                                      return (
-                                        <div key={`${formText}-${idx}`} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2">
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-bold text-gray-900 dark:text-white">{formText}</span>
-                                            {formPos && (
-                                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                                                {formPos}
-                                              </span>
-                                            )}
-                                          </div>
-                                          {formMeaning && (
-                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formMeaning}</p>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
+                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">原型信息</div>
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-3.5 rounded-2xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap rounded-xl bg-white/80 px-2.5 py-2 dark:bg-gray-900">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{baseForm}</span>
+                              </div>
                             </div>
                           </div>
                         )}
 
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI 深度解析</div>
-                          <div className="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-3xl text-sm text-gray-600 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-800">
+                          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl text-xs text-gray-600 dark:text-gray-400 leading-6 border border-gray-100 dark:border-gray-800">
                             {activeLookup?.explanation}
                           </div>
                         </div>
 
                         {activeLookup?.otherMeanings && activeLookup.otherMeanings.length > 0 && (
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">其他常见释义</div>
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                               {activeLookup.otherMeanings.map((m: any, idx: number) => (
-                                <div key={idx} className="flex flex-col gap-1.5 pl-4 border-l-2 border-pink-100 dark:border-pink-900/30">
-                                   <span className="font-bold text-base text-gray-800 dark:text-gray-200">{m.meaning}</span>
-                                   <p className="text-sm text-gray-500 leading-snug">"{m.example}"</p>
+                                <div key={idx} className="flex flex-col gap-1 rounded-xl bg-gray-50/70 px-3 py-2 dark:bg-gray-900/40">
+                                   <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{m.meaning}</span>
+                                   <p className="text-xs text-gray-500 leading-5">"{m.example}"</p>
                                 </div>
                               ))}
                             </div>
