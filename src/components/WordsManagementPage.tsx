@@ -591,14 +591,30 @@ export const WordsManagementPage: React.FC = () => {
                               </div>
                             )}
                             {!!activeLookup?.otherForms?.length && (
-                              <div className="flex items-start gap-2 flex-wrap">
-                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">其他变形</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {activeLookup.otherForms.map((form: string, idx: number) => (
-                                    <span key={`${form}-${idx}`} className="px-2 py-1 rounded-full text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
-                                      {form}
-                                    </span>
-                                  ))}
+                              <div className="space-y-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">其他变形</span>
+                                <div className="grid gap-2">
+                                  {activeLookup.otherForms.map((formItem: any, idx: number) => {
+                                    const formText = typeof formItem === 'string' ? formItem : (formItem?.form || '');
+                                    const formPos = typeof formItem === 'string' ? '' : (formItem?.partOfSpeech || '');
+                                    const formMeaning = typeof formItem === 'string' ? '' : (formItem?.meaning || '');
+                                    if (!formText) return null;
+                                    return (
+                                      <div key={`${formText}-${idx}`} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-bold text-gray-900 dark:text-white">{formText}</span>
+                                          {formPos && (
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                                              {formPos}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {formMeaning && (
+                                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formMeaning}</div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}

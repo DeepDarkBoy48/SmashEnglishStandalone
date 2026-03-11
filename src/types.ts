@@ -129,6 +129,12 @@ export interface OtherMeaning {
   example: string;
 }
 
+export interface OtherForm {
+  form: string;
+  partOfSpeech?: string;
+  meaning?: string;
+}
+
 
 // --- Quick Lookup Result ---
 export interface QuickLookupResult {
@@ -138,7 +144,7 @@ export interface QuickLookupResult {
   grammarRole: string;     // 语法角色
   explanation: string;     // 解释为什么是这个意思
   baseForm?: string;       // 原型/词典原形
-  otherForms?: string[];   // 其他常见变形
+  otherForms?: Array<OtherForm | string>;   // 其他常见变形（兼容旧字符串数据）
   otherMeanings?: OtherMeaning[]; // 其他常见释义
   originalSentence?: string; // 原句内容
   url?: string;             // 原始链接

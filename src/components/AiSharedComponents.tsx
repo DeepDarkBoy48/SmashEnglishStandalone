@@ -118,14 +118,30 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
               </div>
             )}
             {result.otherForms && result.otherForms.length > 0 && (
-              <div className="flex items-start gap-2 flex-wrap">
-                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">其他变形</span>
-                <div className="flex flex-wrap gap-2">
-                  {result.otherForms.map((form: string, idx: number) => (
-                    <span key={`${form}-${idx}`} className="px-2 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-gray-900/60 border border-amber-100 dark:border-amber-900/30">
-                      {form}
-                    </span>
-                  ))}
+              <div className="space-y-2">
+                <span className="text-xs text-gray-400 dark:text-gray-500">其他变形</span>
+                <div className="grid gap-2">
+                  {result.otherForms.map((formItem: any, idx: number) => {
+                    const formText = typeof formItem === 'string' ? formItem : (formItem?.form || '');
+                    const formPos = typeof formItem === 'string' ? '' : (formItem?.partOfSpeech || '');
+                    const formMeaning = typeof formItem === 'string' ? '' : (formItem?.meaning || '');
+                    if (!formText) return null;
+                    return (
+                      <div key={`${formText}-${idx}`} className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-white/80 dark:bg-gray-900/60 px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-800 dark:text-gray-100">{formText}</span>
+                          {formPos && (
+                            <span className="rounded-full border border-amber-200 dark:border-amber-800/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-200">
+                              {formPos}
+                            </span>
+                          )}
+                        </div>
+                        {formMeaning && (
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formMeaning}</div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
