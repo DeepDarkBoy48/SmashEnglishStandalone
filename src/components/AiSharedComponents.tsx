@@ -104,6 +104,34 @@ export const QuickLookupDisplay: React.FC<{ result: any; isPinned?: boolean; hid
           )}
         </div>
       </div>
+
+      {((result.baseForm && result.baseForm.trim()) || (result.otherForms && result.otherForms.length > 0)) && (
+        <div className={`rounded-lg border ${isPinned ? 'mb-3 p-3 bg-amber-50/70 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30' : 'mb-4 p-4 bg-amber-50/70 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30'}`}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-amber-500 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">词形</span>
+          </div>
+          <div className="space-y-2 text-sm text-gray-700 dark:text-gray-200">
+            {result.baseForm && result.baseForm.trim() && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-400 dark:text-gray-500">原型</span>
+                <span className="font-semibold">{result.baseForm}</span>
+              </div>
+            )}
+            {result.otherForms && result.otherForms.length > 0 && (
+              <div className="flex items-start gap-2 flex-wrap">
+                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">其他变形</span>
+                <div className="flex flex-wrap gap-2">
+                  {result.otherForms.map((form: string, idx: number) => (
+                    <span key={`${form}-${idx}`} className="px-2 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-gray-900/60 border border-amber-100 dark:border-amber-900/30">
+                      {form}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* 解释 */}
       <div className={`rounded-lg p-3 border ${isPinned ? 'bg-white/80 dark:bg-gray-900/30 border-blue-100/50 dark:border-gray-800' : 'bg-white/60 dark:bg-gray-900/40 rounded-xl p-4 border-blue-100/50 dark:border-gray-700'}`}>

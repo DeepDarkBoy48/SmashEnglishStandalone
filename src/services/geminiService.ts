@@ -27,7 +27,7 @@ import type { FeatureLLMConfigResponse } from "../types";
 // --- Public Services ---
 
 export const analyzeSentenceService = (sentence: string): Promise<AnalysisResult> => {
-  return request.post('/fastapi/analyze', { sentence }) as Promise<AnalysisResult>;
+  return request.post('/fastapi/analyze', { sentence }, { timeout: 45000 }) as Promise<AnalysisResult>;
 };
 
 export const lookupWordService = (word: string): Promise<DictionaryResult> => {

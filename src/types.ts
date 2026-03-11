@@ -137,6 +137,8 @@ export interface QuickLookupResult {
   partOfSpeech: string;    // 词性缩写
   grammarRole: string;     // 语法角色
   explanation: string;     // 解释为什么是这个意思
+  baseForm?: string;       // 原型/词典原形
+  otherForms?: string[];   // 其他常见变形
   otherMeanings?: OtherMeaning[]; // 其他常见释义
   originalSentence?: string; // 原句内容
   url?: string;             // 原始链接

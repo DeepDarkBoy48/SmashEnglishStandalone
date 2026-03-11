@@ -45,6 +45,11 @@ instance.interceptors.response.use(
   },
   (error) => {
     console.error("Network/Server Error:", error);
+    if (error.code === "ECONNABORTED" || String(error.message || "").includes("timeout")) {
+      error.message = "请求超时：AI 分析耗时过长，请重试。";
+    } else if (error.response?.data?.detail) {
+      error.message = error.response.data.detail;
+    }
     if (error.response && error.response.status === 401) {
         console.warn("Unauthorized access - please login (logic pending)");
     }

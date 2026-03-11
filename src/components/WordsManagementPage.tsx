@@ -580,6 +580,32 @@ export const WordsManagementPage: React.FC = () => {
 
                   {activeLookup?.explanation && (
                     <div className="space-y-2">
+                      {((activeLookup?.baseForm && activeLookup.baseForm.trim()) || (activeLookup?.otherForms && activeLookup.otherForms.length > 0)) && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">词形变化</div>
+                          <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 space-y-3">
+                            {activeLookup?.baseForm && activeLookup.baseForm.trim() && (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">{activeLookup.baseForm}</span>
+                              </div>
+                            )}
+                            {!!activeLookup?.otherForms?.length && (
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">其他变形</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {activeLookup.otherForms.map((form: string, idx: number) => (
+                                    <span key={`${form}-${idx}`} className="px-2 py-1 rounded-full text-xs font-bold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
+                                      {form}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">AI 深度解析</div>
                       <div className="bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                         {activeLookup.explanation}

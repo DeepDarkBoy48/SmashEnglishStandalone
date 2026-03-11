@@ -333,6 +333,35 @@ export const SavedWordsPage: React.FC = () => {
         </div>
 
         <div className="space-y-4 flex-1">
+          {((data?.baseForm && data.baseForm.trim()) || (data?.otherForms && data.otherForms.length > 0)) && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                <BookOpen className="w-3 h-3 text-amber-400" />
+                词形变化
+              </div>
+              <div className="bg-amber-50/40 dark:bg-amber-900/10 rounded-2xl p-4 border border-amber-100/50 dark:border-amber-900/20 space-y-3">
+                {data?.baseForm && data.baseForm.trim() && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">原型</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">{data.baseForm}</span>
+                  </div>
+                )}
+                {!!data?.otherForms?.length && (
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">其他变形</span>
+                    <div className="flex flex-wrap gap-2">
+                      {data.otherForms.map((form: string, idx: number) => (
+                        <span key={`${form}-${idx}`} className="px-2 py-1 rounded-full text-xs font-bold text-amber-700 dark:text-amber-200 bg-white/80 dark:bg-gray-900/60 border border-amber-100 dark:border-amber-900/30">
+                          {form}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {data?.explanation && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
